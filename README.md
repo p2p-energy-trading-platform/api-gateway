@@ -207,14 +207,14 @@ Tokens are issued by the Auth Service using RS256 signing. Access tokens expire 
 
 | Route Group | Status |
 |---|---|
-| Auth | 🔴 Not implemented |
-| Orders | 🔴 Not implemented |
-| Trades | 🔴 Not implemented |
-| Wallet | 🔴 Not implemented |
-| Market | 🔴 Not implemented |
-| Devices | 🔴 Not implemented |
-| Notifications | 🔴 Not implemented |
-| Profile | 🔴 Not implemented |
+| Auth |  Not implemented |
+| Orders |  Not implemented |
+| Trades |  Not implemented |
+| Wallet |  Not implemented |
+| Market |  Not implemented |
+| Devices |  Not implemented |
+| Notifications |  Not implemented |
+| Profile |  Not implemented |
 
 ---
 
