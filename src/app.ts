@@ -2,6 +2,7 @@ import Fastify from 'fastify'
 import cors from '@fastify/cors'
 import helmet from '@fastify/helmet'
 import jwt from '@fastify/jwt'
+import rateLimit from '@fastify/rate-limit'
 
 import { authRoutes } from './routes/v1/auth'
 import { orderRoutes } from './routes/v1/orders'
@@ -15,20 +16,47 @@ import { profileRoutes } from './routes/v1/profile'
 export function buildApp() {
   const app = Fastify({ logger: true })
 
-  // Plugins
+  // Security
   app.register(cors)
   app.register(helmet)
+
+  // Rate limiting - global default
+  app.register(rateLimit, {
+    global: true,
+    max: 100,
+    timeWindow: '1 minute',
+    errorResponseBuilder: () => ({
+      error: {
+        code: 'RATE_LIMIT_EXCEEDED',
+        message: 'Too many requests. Please try again later.',
+      }
+    })
+  })
+
+  // JWT
   app.register(jwt, {
     secret: process.env.JWT_SECRET || 'dev-secret'
   })
 
-  // Health check
-  app.get('/health', async () => {
+  // Health check - excluded from rate limiting
+  app.get('/health', {
+    config: { rateLimit: false }
+  }, async () => {
     return { status: 'ok', service: 'gridx-api-gateway' }
   })
 
-  // Routes
-  app.register(authRoutes, { prefix: '/api/v1/auth' })
+  // Auth routes - stricter rate limit
+  app.register(authRoutes, {
+    prefix: '/api/v1/auth',
+    config: {
+      rateLimit: {
+        max: 10,
+        timeWindow: '1 minute'
+      }
+    }
+  })
+
+  // All other routes - global rate limit applies
   app.register(orderRoutes, { prefix: '/api/v1/orders' })
   app.register(tradeRoutes, { prefix: '/api/v1/trades' })
   app.register(walletRoutes, { prefix: '/api/v1/wallet' })
