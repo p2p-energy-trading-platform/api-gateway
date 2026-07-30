@@ -4,11 +4,28 @@ export const SDK_CONFIG = {
 
   // Downstream service gRPC addresses
   services: {
-    matchingEngine: process.env.MATCHING_ENGINE_URL || 'localhost:50051',
-    orderService: process.env.ORDER_SERVICE_URL || 'localhost:50052',
-    authService: process.env.AUTH_SERVICE_URL || 'localhost:50053',
-    notificationService: process.env.NOTIFICATION_SERVICE_URL || 'localhost:50054',
-  },
+
+  matchingEngine:
+    process.env.MATCHING_ENGINE_URL || 'localhost:50051',
+
+  orderService:
+    process.env.ORDER_SERVICE_URL || 'localhost:50052',
+
+  authService:
+    process.env.AUTH_SERVICE_URL || 'localhost:50053',
+
+  notificationService:
+    process.env.NOTIFICATION_SERVICE_URL || 'localhost:50054',
+
+  tradeService:
+    process.env.TRADE_SERVICE_URL || 'localhost:50055',
+
+  walletService:
+    process.env.WALLET_SERVICE_URL || 'localhost:50056',
+
+  deviceService:
+    process.env.DEVICE_SERVICE_URL || 'localhost:50057'
+},
 
   // gRPC connection options
   grpc: {

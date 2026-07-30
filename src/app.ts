@@ -166,7 +166,7 @@ app.setErrorHandler(
 
 if (env.nodeEnv === 'development') {
   app.ready(() => {
-    console.log(app.printRoutes())
+    app.log.info('\n' + app.printRoutes())
   })
 }
 
