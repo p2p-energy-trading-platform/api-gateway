@@ -6,8 +6,11 @@
   "scripts": {
     "dev": "tsx src/main.ts",
     "build": "tsc",
+    "lint": "oxlint -D correctness -D suspicious --vitest-plugin --deny-warnings src tests",
     "start": "node dist/main.js",
-    "test": "vitest"
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --project tsconfig.test.json"
   },
   "repository": {
     "type": "git",
@@ -32,9 +35,14 @@
   },
   "devDependencies": {
     "@types/node": "^26.1.1",
+    "oxlint": "^1.78.0",
     "ts-node": "^10.9.2",
     "tsx": "^4.23.1",
     "typescript": "^7.0.2",
     "vitest": "^4.1.10"
+  },
+  "allowScripts": {
+    "esbuild@0.28.1": true,
+    "protobufjs@7.6.5": true
   }
 }
