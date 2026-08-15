@@ -30,9 +30,6 @@ Fastify API Gateway  ← This service
 |---|---|
 | [Fastify](https://fastify.dev/) | HTTP framework |
 | [TypeScript](https://www.typescriptlang.org/) | Language |
-| [@fastify/jwt](https://github.com/fastify/fastify-jwt) | JWT authentication |
-| [@fastify/cors](https://github.com/fastify/fastify-cors) | CORS handling |
-| [@fastify/helmet](https://github.com/fastify/fastify-helmet) | Security headers |
 
 ---
 
@@ -83,14 +80,6 @@ npm install
 # Copy environment variables
 cp .env.example .env
 ```
-
-### Environment Variables
-
-| Variable | Description | Default |
-|---|---|---|
-| `PORT` | Port the server listens on | `3000` |
-| `JWT_SECRET` | Secret key for JWT signing | — |
-| `NODE_ENV` | Environment | `development` |
 
 ### Running Locally
 
