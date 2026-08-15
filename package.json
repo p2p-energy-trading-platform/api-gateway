@@ -24,14 +24,17 @@
   },
   "homepage": "https://github.com/p2p-energy-trading-platform/api-gateway#readme",
   "dependencies": {
+    "@confluentinc/kafka-javascript": "^1.10.0",
     "@fastify/cors": "^11.3.0",
     "@fastify/helmet": "^13.1.0",
     "@fastify/jwt": "^10.2.0",
     "@fastify/rate-limit": "^11.1.0",
+    "@fastify/websocket": "^11.3.0",
     "@grpc/grpc-js": "^1.14.4",
     "@grpc/proto-loader": "^0.8.1",
     "dotenv": "^17.4.2",
-    "fastify": "^5.10.0"
+    "fastify": "^5.10.0",
+    "ioredis": "^6.0.0"
   },
   "devDependencies": {
     "@types/node": "^26.1.1",
@@ -43,6 +46,7 @@
   },
   "allowScripts": {
     "esbuild@0.28.1": true,
-    "protobufjs@7.6.5": true
+    "protobufjs@7.6.5": true,
+    "@confluentinc/kafka-javascript@1.10.0": true
   }
 }
