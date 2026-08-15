@@ -1,5 +1,5 @@
 import type { FastifyServerOptions, RawServerDefault } from 'fastify'
-import { AppConfig } from '../config/types.js';
+import { type AppConfig } from '../config/types.js';
 
 type LoggerOptions = NonNullable<
     FastifyServerOptions<RawServerDefault>['logger']

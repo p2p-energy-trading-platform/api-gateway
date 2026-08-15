@@ -1,5 +1,5 @@
 import { Redis, type Redis as RedisClient } from 'ioredis'
-import { AppConfig } from '../../config/types.js'
+import { type AppConfig } from '../../config/types.js'
 
 export function createRedisClient(
   config: AppConfig,
