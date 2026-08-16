@@ -11,7 +11,7 @@ services:
       REDIS_URL: redis://redis:6379
 
     ports:
-      - "${API_GATEWAY_PORT:-3000}:3000"
+      - "${API_GATEWAY_PORT:-8000}:3000"
 
     depends_on:
       redis:
