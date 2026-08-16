@@ -227,3 +227,31 @@ In Other Operating systems:
 ```bash
 task up
 ```
+
+### Lint, format, type check & run tests
+
+Run the following commands to verify the source code is 100% production quality.
+
+```bash
+# Lint check
+npm run lint
+
+# Format check
+npm run format:check
+
+# Type check
+npm run typecheck
+
+# Run tests
+npm run test
+```
+
+### Lint and format fix
+
+```bash
+# Fix lint errors
+npm run lint:fix
+
+# Fix format errors
+npm run format
+```
