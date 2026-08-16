@@ -12,6 +12,7 @@
     "build": "tsc -p tsconfig.json",
     "start": "node dist/main.js",
     "lint": "oxlint -D correctness -D suspicious --vitest-plugin --deny-warnings src test",
+    "lint:fix": "oxlint -D correctness -D suspicious --vitest-plugin --fix src test",
     "format": "oxfmt --write src test",
     "format:check": "oxfmt --check src test",
     "typecheck": "tsc --noEmit -p tsconfig.json",
