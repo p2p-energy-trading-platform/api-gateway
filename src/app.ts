@@ -12,13 +12,14 @@ import { registerSecurity } from './plugins/security.js'
 import { registerCors } from './plugins/cors.js'
 
 export interface BuildAppOptions {
-  config: AppConfig
+  config: AppConfig;
+  registerInfrastructure?: boolean;
 }
 
 export async function buildApp(
   options: BuildAppOptions,
 ): Promise<FastifyInstance> {
-  const { config } = options
+  const { config, registerInfrastructure = true } = options
 
   const app = Fastify({
     logger: createLoggerOptions(config),
@@ -49,9 +50,12 @@ export async function buildApp(
    */
   await registerSecurity(app)
   await registerCors(app, config)
-  await app.register(redisPlugin, {
-    config,
-  })
+
+  if (registerInfrastructure) {
+    await app.register(redisPlugin, {
+      config,
+    })
+  }
 
   /*
    * Routes
