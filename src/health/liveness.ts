@@ -1,5 +1,5 @@
 export function getLiveness() {
-    return {
-        status: 'ok' as const,
-    }
+  return {
+    status: 'ok' as const,
+  };
 }

@@ -1,75 +1,51 @@
-import fp from 'fastify-plugin'
-import type { FastifyPluginAsync } from 'fastify'
+import fp from 'fastify-plugin';
+import type { FastifyPluginAsync } from 'fastify';
 
-import type { AppConfig } from '../config/types.js'
-import { createRedisClient } from '../transport/redis/client.js'
+import type { AppConfig } from '../config/types.js';
+import { createRedisClient } from '../transport/redis/client.js';
 
 export interface RedisPluginOptions {
-  config: AppConfig
+  config: AppConfig;
 }
 
-const redisPlugin: FastifyPluginAsync<
-  RedisPluginOptions
-> = async (
-  app,
-  options,
-): Promise<void> => {
-  const { config } = options
+const redisPlugin: FastifyPluginAsync<RedisPluginOptions> = async (app, options): Promise<void> => {
+  const { config } = options;
 
-  const redis =
-    createRedisClient(config)
+  const redis = createRedisClient(config);
 
   try {
-    await redis.connect()
+    await redis.connect();
 
-    const result = await redis.ping()
+    const result = await redis.ping();
 
     if (result !== 'PONG') {
-      throw new Error(
-        'Redis health check did not return PONG',
-      )
+      throw new Error('Redis health check did not return PONG');
     }
 
-    app.log.info(
-      'Redis connection established',
-    )
+    app.log.info('Redis connection established');
   } catch (error) {
-    app.log.error(
-      { err: error },
-      'Failed to connect to Redis',
-    )
+    app.log.error({ err: error }, 'Failed to connect to Redis');
 
-    redis.disconnect()
+    redis.disconnect();
 
-    throw error
+    throw error;
   }
 
-  app.decorate('redis', redis)
+  app.decorate('redis', redis);
 
-  app.addHook(
-    'onClose',
-    async () => {
-      app.log.info(
-        'Closing Redis connection',
-      )
+  app.addHook('onClose', async () => {
+    app.log.info('Closing Redis connection');
 
-      try {
-        await redis.quit()
-      } catch (error) {
-        app.log.warn(
-          { err: error },
-          'Redis quit failed; disconnecting',
-        )
+    try {
+      await redis.quit();
+    } catch (error) {
+      app.log.warn({ err: error }, 'Redis quit failed; disconnecting');
 
-        redis.disconnect()
-      }
-    },
-  )
-}
+      redis.disconnect();
+    }
+  });
+};
 
-export default fp(
-  redisPlugin,
-  {
-    name: 'redis',
-  },
-)
+export default fp(redisPlugin, {
+  name: 'redis',
+});
