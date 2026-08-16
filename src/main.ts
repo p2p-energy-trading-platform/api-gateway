@@ -1,32 +1,55 @@
-import 'dotenv/config'
+import { buildApp } from './app.js';
+import { loadConfig } from './config/env.js';
 
-import { buildApp } from './app'
-import { env } from './config/env'
+async function main(): Promise<void> {
+  const config = loadConfig();
 
-const HTTP_PORT = env.port
+  const app = await buildApp({
+    config,
+  });
 
+  let shuttingDown = false;
 
-async function start() {
-  const app = buildApp()
-  // Graceful shutdown handler
-  const shutdown = async () => {
-    console.log('[Server] Shutting down...')
-    await app.close()
-    process.exit(0)
+  async function shutdown(signal: NodeJS.Signals): Promise<void> {
+    if (shuttingDown) {
+      return;
+    }
+
+    shuttingDown = true;
+
+    app.log.info({ signal }, 'Shutdown signal received');
+
+    try {
+      await app.close();
+
+      app.log.info('Application shut down cleanly');
+
+      process.exitCode = 0;
+    } catch (error) {
+      app.log.error({ err: error }, 'Graceful shutdown failed');
+
+      process.exitCode = 1;
+    }
   }
-  process.on('SIGINT', shutdown)
-  process.on('SIGTERM', shutdown)
+
+  process.once('SIGTERM', () => {
+    void shutdown('SIGTERM');
+  });
+
+  process.once('SIGINT', () => {
+    void shutdown('SIGINT');
+  });
 
   try {
     await app.listen({
-      port: HTTP_PORT,
-      host: '0.0.0.0'
-    })
-    console.log(`[HTTP] Server listening on port ${HTTP_PORT}`)
-  } catch (err) {
-    app.log.error(err)
-    process.exit(1)
+      host: config.http.host,
+      port: config.http.port,
+    });
+  } catch (error) {
+    app.log.fatal({ err: error }, 'Application startup failed');
+
+    process.exitCode = 1;
   }
 }
 
-start()
+void main();

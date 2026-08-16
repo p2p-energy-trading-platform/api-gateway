@@ -1,43 +1,67 @@
-export const env = {
+import 'dotenv/config';
+import envSchema from 'env-schema';
 
-  port: Number(process.env.PORT ?? 3000),
-  nodeEnv:
-    process.env.NODE_ENV ?? 'development',
-  jwtSecret:
-    process.env.JWT_SECRET ?? 'dev-secret',
-  logLevel:
-    process.env.LOG_LEVEL ?? 'info',
+import { envSchema as schema } from './schema.js';
+import type { AppConfig } from './types.js';
 
-  rateLimit: {
-    max:
-      Number(process.env.RATE_LIMIT_MAX ?? 100),
-    window:
-      process.env.RATE_LIMIT_WINDOW ?? '1 minute',
-    authMax:
-      Number(process.env.RATE_LIMIT_AUTH_MAX ?? 10)
-  },
+interface RawEnvironment {
+  NODE_ENV: 'development' | 'test' | 'production';
+  SERVICE_NAME: string;
+  SERVICE_VERSION: string;
+  HOST: string;
+  PORT: number;
+  LOG_LEVEL: string;
+  BODY_LIMIT_BYTES: number;
+  REQUEST_TIMEOUT_MS: number;
+  CORS_ORIGINS: string;
+  REDIS_URL: string;
+  REDIS_CONNECT_TIMEOUT_MS: number;
+}
 
-  gatewayUrl:
-    process.env.GATEWAY_BASE_URL ??
-    'http://localhost:3000',
+export function loadConfig(): AppConfig {
+  const env = envSchema<RawEnvironment>({
+    schema,
+    dotenv: false,
+  });
 
-  grpc: {
-    port:
-      Number(process.env.GRPC_PORT ?? 50050)
-  },
+  return Object.freeze({
+    nodeEnv: env.NODE_ENV,
 
-  services: {
-    matchingEngine:
-      process.env.MATCHING_ENGINE_URL ??
-      'localhost:50051',
-    order:
-      process.env.ORDER_SERVICE_URL ??
-      'localhost:50052',
-    auth:
-      process.env.AUTH_SERVICE_URL ??
-      'localhost:50053',
-    notification:
-      process.env.NOTIFICATION_SERVICE_URL ??
-      'localhost:50054'
-  }
+    service: {
+      name: env.SERVICE_NAME,
+      version: env.SERVICE_VERSION,
+    },
+
+    http: {
+      host: env.HOST,
+      port: env.PORT,
+      bodyLimitBytes: env.BODY_LIMIT_BYTES,
+      requestTimeoutMs: env.REQUEST_TIMEOUT_MS,
+    },
+
+    logging: {
+      level: env.LOG_LEVEL,
+    },
+
+    cors: {
+      origins: env.CORS_ORIGINS.split(',')
+        .map((origin) => origin.trim())
+        .filter(Boolean),
+    },
+
+    redis: {
+      url: env.REDIS_URL,
+      connectTimeoutMs: env.REDIS_CONNECT_TIMEOUT_MS,
+    },
+
+    auth: {
+      issuer: '',
+      audience: '',
+      jwksUri: '',
+      allowedAlgorithms: ['RS256'],
+      clockToleranceSeconds: 5,
+      jwksCacheTtlSeconds: 300,
+      jwksRequestTimeoutMs: 2000,
+    },
+  });
 }
