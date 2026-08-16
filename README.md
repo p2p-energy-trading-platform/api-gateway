@@ -189,27 +189,41 @@ api-gateway/
 
 ### Installation
 
-```bash
-# Clone the repo
-git clone https://github.com/p2p-energy-trading-platform/api-gateway.git
-cd api-gateway
+API Gateway is bootstrapped to gridx-workspace docker-compose.root.yml.
 
+```bash
 # Install dependencies
-npm install
+npm ci
 
 # Copy environment variables
 cp .env.example .env
 ```
 
-### Running Locally
+### Running Locally (without docker and infra load)
 
 ```bash
 # Development (with hot reload)
-npx tsx src/main.ts
+npm run dev
 
 # Build
-npx tsc
+npm run build
 
-# Production
-node dist/main.js
+# Production build (local)
+npm run start
+```
+
+### Running inside infra container
+
+Switch to `gridx-workspace` folder
+
+In arch & Fedora:
+
+```bash
+go-task up
+```
+
+In Other Operating systems:
+
+```bash
+task up
 ```
