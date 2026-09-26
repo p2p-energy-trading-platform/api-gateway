@@ -1,8 +1,20 @@
 import { buildApp } from './app.js';
 import { loadConfig } from './config/env.js';
+import type { AppConfig } from './config/types.js';
 
 async function main(): Promise<void> {
-  const config = loadConfig();
+  let config: AppConfig;
+
+  try {
+    config = loadConfig();
+  } catch (error) {
+    console.error('[api-gateway] Invalid configuration, refusing to start.');
+    console.error(error instanceof Error ? error.message : String(error));
+
+    process.exitCode = 1;
+
+    return;
+  }
 
   const app = await buildApp({
     config,

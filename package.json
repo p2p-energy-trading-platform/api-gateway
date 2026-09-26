@@ -9,6 +9,7 @@
   },
   "scripts": {
     "dev": "tsx watch src/main.ts",
+    "check-config": "tsx scripts/check-config.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/main.js",
     "lint": "oxlint -D correctness -D suspicious --vitest-plugin --deny-warnings src test",
