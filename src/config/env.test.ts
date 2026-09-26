@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { loadConfig } from '../../src/config/env.js';
+import { loadConfig } from './env.js';
 
 const REQUIRED_ENV = {
   NODE_ENV: 'test',
@@ -80,13 +80,13 @@ describe('loadConfig', () => {
   it('throws when NODE_ENV is not one of the allowed values', () => {
     setEnv({ ...REQUIRED_ENV, NODE_ENV: 'staging' });
 
-    expect(() => loadConfig()).toThrow();
+    expect(() => loadConfig()).toThrowError(/NODE_ENV/);
   });
 
   it('throws when PORT is out of the allowed range', () => {
     setEnv({ ...REQUIRED_ENV, PORT: '70000' });
 
-    expect(() => loadConfig()).toThrow();
+    expect(() => loadConfig()).toThrowError(/PORT/);
   });
 
   it('splits and trims comma-separated CORS_ORIGINS', () => {
