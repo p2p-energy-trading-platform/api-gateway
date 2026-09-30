@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { loadConfig } from './env.js';
+import { loadConfig, parseCorsOrigins } from './env.js';
 
 const REQUIRED_ENV = {
   NODE_ENV: 'test',
@@ -102,5 +102,58 @@ describe('loadConfig', () => {
       'http://localhost:4000',
       'http://example.com',
     ]);
+  });
+
+  it.each(['', 'localhost:6379', 'http://localhost:6379'])(
+    'throws when REDIS_URL is "%s"',
+    (redisUrl) => {
+      setEnv({ ...REQUIRED_ENV, REDIS_URL: redisUrl });
+
+      expect(() => loadConfig()).toThrowError(/REDIS_URL/);
+    },
+  );
+
+  it('accepts a TLS rediss:// REDIS_URL', () => {
+    setEnv({ ...REQUIRED_ENV, REDIS_URL: 'rediss://user:pass@redis.internal:6380' });
+
+    expect(loadConfig().redis.url).toBe('rediss://user:pass@redis.internal:6380');
+  });
+
+  it.each(['SERVICE_NAME', 'HOST'])('throws when %s is empty', (key) => {
+    setEnv({ ...REQUIRED_ENV, [key]: '' });
+
+    expect(() => loadConfig()).toThrowError(new RegExp(key));
+  });
+});
+
+describe('parseCorsOrigins', () => {
+  it.each([
+    ['*', /wildcard/],
+    ['http://localhost:5173,*', /wildcard/],
+    [' , ', /at least one origin/],
+    ['localhost:5173', /http or https/],
+    ['not a url', /invalid origin/],
+    ['ftp://example.com', /http or https/],
+    ['http://localhost:5173/', /trailing slash/],
+    ['https://app.gridx.io/dashboard', /path/],
+  ])('rejects "%s"', (raw, message) => {
+    expect(() => parseCorsOrigins(raw, 'development')).toThrowError(message);
+  });
+
+  it('rejects http origins in production', () => {
+    expect(() => parseCorsOrigins('http://app.gridx.io', 'production')).toThrowError(/https/);
+  });
+
+  it('accepts https origins in production', () => {
+    expect(parseCorsOrigins('https://app.gridx.io, https://m.gridx.io', 'production')).toEqual([
+      'https://app.gridx.io',
+      'https://m.gridx.io',
+    ]);
+  });
+
+  it('makes loadConfig fail on an invalid origin', () => {
+    setEnv({ ...REQUIRED_ENV, CORS_ORIGINS: '*' });
+
+    expect(() => loadConfig()).toThrowError(/CORS_ORIGINS/);
   });
 });
