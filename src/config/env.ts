@@ -18,7 +18,6 @@ interface RawEnvironment {
   REDIS_CONNECT_TIMEOUT_MS: number;
 }
 
-
 export function parseCorsOrigins(raw: string, nodeEnv: NodeEnvironment): string[] {
   const origins = raw
     .split(',')
@@ -98,7 +97,7 @@ export function loadConfig(): AppConfig {
       issuer: '',
       audience: '',
       jwksUri: '',
-      allowedAlgorithms: ['RS256','EDDSA'],
+      allowedAlgorithms: ['RS256', 'EDDSA'],
       clockToleranceSeconds: 5,
       jwksCacheTtlSeconds: 300,
       jwksRequestTimeoutMs: 2000,
