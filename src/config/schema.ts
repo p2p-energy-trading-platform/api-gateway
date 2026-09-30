@@ -11,6 +11,7 @@ export const envSchema = {
 
     SERVICE_NAME: {
       type: 'string',
+      minLength: 1,
       default: 'api-gateway',
     },
 
@@ -21,6 +22,7 @@ export const envSchema = {
 
     HOST: {
       type: 'string',
+      minLength: 1,
       default: '0.0.0.0',
     },
 
@@ -56,6 +58,7 @@ export const envSchema = {
 
     REDIS_URL: {
       type: 'string',
+      pattern: '^rediss?://.+',
     },
 
     REDIS_CONNECT_TIMEOUT_MS: {
