@@ -1,4 +1,5 @@
 export const ErrorCodes = {
+  BAD_REQUEST: { status: 400, message: 'Bad request.' },
   VALIDATION_ERROR: { status: 400, message: 'Request validation failed.' },
   UNAUTHENTICATED: { status: 401, message: 'Authentication required.' },
   FORBIDDEN: { status: 403, message: 'Access denied.' },
@@ -16,7 +17,9 @@ export const ErrorCodes = {
 export type ErrorCode = keyof typeof ErrorCodes;
 
 const errorCodeByStatus = new Map<number, ErrorCode>(
-  Object.entries(ErrorCodes).map(([code, { status }]) => [status, code as ErrorCode]),
+  Object.entries(ErrorCodes)
+    .filter(([code]) => code !== 'VALIDATION_ERROR')
+    .map(([code, { status }]) => [status, code as ErrorCode]),
 );
 
 export function errorCodeFromStatus(statusCode: number): ErrorCode {
@@ -26,5 +29,5 @@ export function errorCodeFromStatus(statusCode: number): ErrorCode {
     return code;
   }
 
-  return statusCode >= 400 && statusCode < 500 ? 'VALIDATION_ERROR' : 'INTERNAL_ERROR';
+  return statusCode >= 400 && statusCode < 500 ? 'BAD_REQUEST' : 'INTERNAL_ERROR';
 }
