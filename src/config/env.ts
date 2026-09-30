@@ -2,10 +2,10 @@ import 'dotenv/config';
 import envSchema from 'env-schema';
 
 import { envSchema as schema } from './schema.js';
-import type { AppConfig } from './types.js';
+import type { AppConfig, NodeEnvironment } from './types.js';
 
 interface RawEnvironment {
-  NODE_ENV: 'development' | 'test' | 'production';
+  NODE_ENV: NodeEnvironment;
   SERVICE_NAME: string;
   SERVICE_VERSION: string;
   HOST: string;
@@ -16,6 +16,48 @@ interface RawEnvironment {
   CORS_ORIGINS: string;
   REDIS_URL: string;
   REDIS_CONNECT_TIMEOUT_MS: number;
+}
+
+
+export function parseCorsOrigins(raw: string, nodeEnv: NodeEnvironment): string[] {
+  const origins = raw
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+
+  if (origins.length === 0) {
+    throw new Error('CORS_ORIGINS must contain at least one origin.');
+  }
+
+  for (const origin of origins) {
+    if (origin === '*') {
+      throw new Error('CORS_ORIGINS must not contain a wildcard (*).');
+    }
+
+    let url: URL;
+
+    try {
+      url = new URL(origin);
+    } catch {
+      throw new Error(`CORS_ORIGINS contains an invalid origin: "${origin}".`);
+    }
+
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+      throw new Error(`CORS_ORIGINS origin must use http or https: "${origin}".`);
+    }
+
+    if (url.origin !== origin) {
+      throw new Error(
+        `CORS_ORIGINS origin must not include a path or trailing slash: "${origin}" (use "${url.origin}").`,
+      );
+    }
+
+    if (nodeEnv === 'production' && url.protocol !== 'https:') {
+      throw new Error(`CORS_ORIGINS origin must use https in production: "${origin}".`);
+    }
+  }
+
+  return origins;
 }
 
 export function loadConfig(): AppConfig {
@@ -44,9 +86,7 @@ export function loadConfig(): AppConfig {
     },
 
     cors: {
-      origins: env.CORS_ORIGINS.split(',')
-        .map((origin) => origin.trim())
-        .filter(Boolean),
+      origins: parseCorsOrigins(env.CORS_ORIGINS, env.NODE_ENV),
     },
 
     redis: {
