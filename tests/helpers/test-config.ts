@@ -1,0 +1,40 @@
+import type { AppConfig } from '../../src/config/types.js';
+
+export const testConfig: AppConfig = {
+  nodeEnv: 'test',
+
+  service: {
+    name: 'api-gateway',
+    version: 'test',
+  },
+
+  http: {
+    host: '127.0.0.1',
+    port: 3000,
+    bodyLimitBytes: 1_048_576,
+    requestTimeoutMs: 10_000,
+  },
+
+  logging: {
+    level: 'silent',
+  },
+
+  cors: {
+    origins: ['http://localhost:5173'],
+  },
+
+  redis: {
+    url: 'redis://localhost:6379',
+    connectTimeoutMs: 2_000,
+  },
+
+  auth: {
+    issuer: 'gridx-auth-service',
+    audience: 'gridx-api-gateway',
+    jwksUri: 'http://localhost:8080/.well-known/jwks.json',
+    allowedAlgorithms: ['RS256'],
+    clockToleranceSeconds: 5,
+    jwksCacheTtlSeconds: 300,
+    jwksRequestTimeoutMs: 2_000,
+  },
+};

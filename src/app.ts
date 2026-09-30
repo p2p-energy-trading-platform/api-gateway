@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import Fastify, { type FastifyInstance } from 'fastify';
 
 import type { AppConfig } from './config/types.js';
+import { registerErrorHandler } from './errors/error-handler.js';
 import { registerHealthRoutes } from './health/routes.js';
 import { createLoggerOptions } from './observability/logging.js';
 import redisPlugin from './plugins/redis.js';
@@ -34,6 +35,11 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
       return randomUUID();
     },
   });
+
+  /*
+   * Error handling
+   */
+  registerErrorHandler(app);
 
   /*
    * Infrastructure plugins
