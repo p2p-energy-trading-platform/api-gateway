@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 
 import Fastify, { type FastifyInstance } from 'fastify';
 
+import { validatorCompiler } from './common/validation.js';
 import type { AppConfig } from './config/types.js';
 import { registerErrorHandler } from './errors/error-handler.js';
 import { registerHealthRoutes } from './health/routes.js';
@@ -37,8 +38,9 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
   });
 
   /*
-   * Error handling
+   * Validation and error handling
    */
+  app.setValidatorCompiler(validatorCompiler);
   registerErrorHandler(app);
 
   /*
