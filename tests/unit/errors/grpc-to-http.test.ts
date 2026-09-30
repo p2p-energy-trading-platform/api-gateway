@@ -58,11 +58,12 @@ describe('fromGrpcError', () => {
 
 describe('errorCodeFromStatus', () => {
   it.each([
-    [400, 'VALIDATION_ERROR'],
+    [400, 'BAD_REQUEST'],
     [404, 'NOT_FOUND'],
     [413, 'PAYLOAD_TOO_LARGE'],
     [415, 'UNSUPPORTED_MEDIA_TYPE'],
-    [418, 'VALIDATION_ERROR'],
+    [408, 'BAD_REQUEST'],
+    [418, 'BAD_REQUEST'],
     [502, 'INTERNAL_ERROR'],
   ])('maps HTTP %i to %s', (status, expected) => {
     expect(errorCodeFromStatus(status)).toBe(expected);

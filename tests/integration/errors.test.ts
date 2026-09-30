@@ -96,7 +96,7 @@ describe('error handling', () => {
     ]);
   });
 
-  it('returns VALIDATION_ERROR for malformed JSON', async () => {
+  it('returns BAD_REQUEST for malformed JSON', async () => {
     const response = await app.inject({
       method: 'POST',
       url: '/test/validated',
@@ -105,7 +105,7 @@ describe('error handling', () => {
     });
 
     expect(response.statusCode).toBe(400);
-    expectStandardError(response.json(), 'VALIDATION_ERROR');
+    expectStandardError(response.json(), 'BAD_REQUEST');
   });
 
   it('returns PAYLOAD_TOO_LARGE when the body exceeds the limit', async () => {
