@@ -98,7 +98,7 @@ export function loadConfig(): AppConfig {
       issuer: '',
       audience: '',
       jwksUri: '',
-      allowedAlgorithms: ['RS256'],
+      allowedAlgorithms: ['RS256','EDDSA'],
       clockToleranceSeconds: 5,
       jwksCacheTtlSeconds: 300,
       jwksRequestTimeoutMs: 2000,
