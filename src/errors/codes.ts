@@ -19,7 +19,6 @@ const errorCodeByStatus = new Map<number, ErrorCode>(
   Object.entries(ErrorCodes).map(([code, { status }]) => [status, code as ErrorCode]),
 );
 
-
 export function errorCodeFromStatus(statusCode: number): ErrorCode {
   const code = errorCodeByStatus.get(statusCode);
 

@@ -55,7 +55,6 @@ export function registerErrorHandler(app: FastifyInstance): void {
 
     const statusCode = error.statusCode ?? 500;
 
-   
     if (statusCode >= 400 && statusCode < 500) {
       return sendError(request, reply, errorCodeFromStatus(statusCode), error.message);
     }
