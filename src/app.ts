@@ -11,6 +11,8 @@ import redisPlugin from './plugins/redis.js';
 import { registerSecurity } from './plugins/security.js';
 import { registerCors } from './plugins/cors.js';
 
+const REQUEST_ID_PATTERN = /^[A-Za-z0-9._:-]{1,128}$/;
+
 export interface BuildAppOptions {
   config: AppConfig;
   registerInfrastructure?: boolean;
@@ -29,12 +31,17 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
     genReqId(request) {
       const incoming = request.headers['x-request-id'];
 
-      if (typeof incoming === 'string' && incoming.length > 0 && incoming.length <= 128) {
+      if (typeof incoming === 'string' && REQUEST_ID_PATTERN.test(incoming)) {
         return incoming;
       }
 
       return randomUUID();
     },
+  });
+
+  // Return the request ID so clients can quote it when reporting a problem.
+  app.addHook('onRequest', async (request, reply) => {
+    reply.header('x-request-id', request.id);
   });
 
   /*
@@ -46,7 +53,7 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
   /*
    * Infrastructure plugins
    */
-  await registerSecurity(app);
+  await registerSecurity(app, config);
   await registerCors(app, config);
 
   if (registerInfrastructure) {
