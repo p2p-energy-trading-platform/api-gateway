@@ -1,5 +1,6 @@
 import type { FastifyServerOptions, RawServerDefault } from 'fastify';
 import { type AppConfig } from '../config/types.js';
+import { REDACTED, redactPaths } from './redaction.js';
 
 type LoggerOptions = NonNullable<FastifyServerOptions<RawServerDefault>['logger']>;
 
@@ -14,16 +15,8 @@ export function createLoggerOptions(config: AppConfig): LoggerOptions {
     },
 
     redact: {
-      paths: [
-        'req.headers.authorization',
-        'req.headers.cookie',
-        'res.headers["set-cookie"]',
-        '*.password',
-        '*.accessToken',
-        '*.refreshToken',
-        '*.token',
-      ],
-      censor: '[REDACTED]',
+      paths: redactPaths,
+      censor: REDACTED,
     },
   };
 }
