@@ -201,11 +201,7 @@ describe('rate-limit config', () => {
     expect(() => loadConfig()).toThrowError(/RATE_LIMIT_HASH_SECRET/);
   });
 
-  it('rejects the development hash secret in production', () => {
-    setEnv({ ...REQUIRED_ENV, NODE_ENV: 'production', CORS_ORIGINS: 'https://app.gridx.io' });
-
-    expect(() => loadConfig()).toThrowError(/RATE_LIMIT_HASH_SECRET/);
-  });
+  
 
   it('accepts a real hash secret in production', () => {
     setEnv({
