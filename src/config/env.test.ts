@@ -201,8 +201,6 @@ describe('rate-limit config', () => {
     expect(() => loadConfig()).toThrowError(/RATE_LIMIT_HASH_SECRET/);
   });
 
-  
-
   it('accepts a real hash secret in production', () => {
     setEnv({
       ...REQUIRED_ENV,
