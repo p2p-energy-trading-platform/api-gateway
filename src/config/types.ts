@@ -1,4 +1,5 @@
 export type NodeEnvironment = 'development' | 'test' | 'production';
+export type TrustProxy = false | number | string[];
 
 export interface AppConfig {
   nodeEnv: NodeEnvironment;
@@ -13,6 +14,7 @@ export interface AppConfig {
     port: number;
     bodyLimitBytes: number;
     requestTimeoutMs: number;
+    trustProxy: TrustProxy;
   };
 
   logging: {
@@ -26,6 +28,10 @@ export interface AppConfig {
   redis: {
     url: string;
     connectTimeoutMs: number;
+  };
+
+  rateLimit: {
+    hashSecret: string;
   };
 
   auth: {
