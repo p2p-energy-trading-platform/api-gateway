@@ -13,6 +13,7 @@ export const testConfig: AppConfig = {
     port: 3000,
     bodyLimitBytes: 1_048_576,
     requestTimeoutMs: 10_000,
+    trustProxy: false,
   },
 
   logging: {
@@ -26,6 +27,10 @@ export const testConfig: AppConfig = {
   redis: {
     url: 'redis://localhost:6379',
     connectTimeoutMs: 2_000,
+  },
+
+  rateLimit: {
+    hashSecret: 'test-rate-limit-secret',
   },
 
   auth: {

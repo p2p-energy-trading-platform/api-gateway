@@ -66,5 +66,15 @@ export const envSchema = {
       minimum: 100,
       default: 2000,
     },
+
+    TRUST_PROXY: {
+      type: 'string',
+      default: 'false',
+    },
+
+    RATE_LIMIT_HASH_SECRET: {
+      type: 'string',
+      minLength: 16,
+    },
   },
 } as const;

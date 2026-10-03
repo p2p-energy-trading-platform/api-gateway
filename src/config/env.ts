@@ -1,8 +1,8 @@
 import 'dotenv/config';
+import { isIP } from 'node:net';
 import envSchema from 'env-schema';
-
 import { envSchema as schema } from './schema.js';
-import type { AppConfig, NodeEnvironment } from './types.js';
+import type { AppConfig, NodeEnvironment, TrustProxy } from './types.js';
 
 interface RawEnvironment {
   NODE_ENV: NodeEnvironment;
@@ -16,6 +16,8 @@ interface RawEnvironment {
   CORS_ORIGINS: string;
   REDIS_URL: string;
   REDIS_CONNECT_TIMEOUT_MS: number;
+  TRUST_PROXY: string;
+  RATE_LIMIT_HASH_SECRET: string;
 }
 
 export function parseCorsOrigins(raw: string, nodeEnv: NodeEnvironment): string[] {
@@ -59,6 +61,44 @@ export function parseCorsOrigins(raw: string, nodeEnv: NodeEnvironment): string[
   return origins;
 }
 
+export function parseTrustProxy(raw: string): TrustProxy {
+  const value = raw.trim();
+
+  if (value === '' || value === 'false' || value === '0') {
+    return false;
+  }
+
+  if (value === 'true') {
+    throw new Error(
+      'TRUST_PROXY=true would let any client fake its IP. List the proxy IPs/CIDRs instead.',
+    );
+  }
+
+  if (/^[0-9]+$/.test(value)) {
+    throw new Error('TRUST_PROXY must list proxy IPs/CIDRs, not a hop count.');
+  }
+
+  const proxies = value
+    .split(',')
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+
+  for (const proxy of proxies) {
+    const [address = '', prefix] = proxy.split('/');
+    const family = isIP(address);
+    const maxPrefix = family === 6 ? 128 : 32;
+
+    const validPrefix =
+      prefix === undefined || (/^[0-9]+$/.test(prefix) && Number(prefix) <= maxPrefix);
+
+    if (family === 0 || !validPrefix) {
+      throw new Error(`TRUST_PROXY contains an invalid IP or CIDR: "${proxy}".`);
+    }
+  }
+
+  return proxies;
+}
+
 export function loadConfig(): AppConfig {
   const env = envSchema<RawEnvironment>({
     schema,
@@ -78,6 +118,7 @@ export function loadConfig(): AppConfig {
       port: env.PORT,
       bodyLimitBytes: env.BODY_LIMIT_BYTES,
       requestTimeoutMs: env.REQUEST_TIMEOUT_MS,
+      trustProxy: parseTrustProxy(env.TRUST_PROXY),
     },
 
     logging: {
@@ -91,6 +132,10 @@ export function loadConfig(): AppConfig {
     redis: {
       url: env.REDIS_URL,
       connectTimeoutMs: env.REDIS_CONNECT_TIMEOUT_MS,
+    },
+
+    rateLimit: {
+      hashSecret: env.RATE_LIMIT_HASH_SECRET,
     },
 
     auth: {

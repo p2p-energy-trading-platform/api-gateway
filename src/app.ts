@@ -7,6 +7,7 @@ import type { AppConfig } from './config/types.js';
 import { registerErrorHandler } from './errors/error-handler.js';
 import { registerHealthRoutes } from './health/routes.js';
 import { createLoggerOptions } from './observability/logging.js';
+import rateLimitPlugin from './plugins/rate-limit.js';
 import redisPlugin from './plugins/redis.js';
 import { registerSecurity } from './plugins/security.js';
 import { registerCors } from './plugins/cors.js';
@@ -27,6 +28,8 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
     bodyLimit: config.http.bodyLimitBytes,
 
     requestTimeout: config.http.requestTimeoutMs,
+
+    trustProxy: config.http.trustProxy,
 
     genReqId(request) {
       const incoming = request.headers['x-request-id'];
@@ -58,6 +61,10 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
 
   if (registerInfrastructure) {
     await app.register(redisPlugin, {
+      config,
+    });
+
+    await app.register(rateLimitPlugin, {
       config,
     });
   }
