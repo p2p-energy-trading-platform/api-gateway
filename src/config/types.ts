@@ -1,5 +1,5 @@
 export type NodeEnvironment = 'development' | 'test' | 'production';
-export type TrustProxy = false | number | string[];
+export type TrustProxy = false | string[];
 
 export interface AppConfig {
   nodeEnv: NodeEnvironment;
