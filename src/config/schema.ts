@@ -1,4 +1,3 @@
-
 export const envSchema = {
   type: 'object',
 

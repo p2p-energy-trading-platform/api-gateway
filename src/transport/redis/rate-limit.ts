@@ -19,7 +19,6 @@ export interface RateLimitResult {
   resetMs: number;
 }
 
-
 export async function consumeRateLimit(
   redis: Redis,
   key: string,

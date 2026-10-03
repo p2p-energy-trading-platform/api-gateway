@@ -61,7 +61,6 @@ export function parseCorsOrigins(raw: string, nodeEnv: NodeEnvironment): string[
   return origins;
 }
 
-
 export function parseTrustProxy(raw: string): TrustProxy {
   const value = raw.trim();
 
@@ -74,7 +73,6 @@ export function parseTrustProxy(raw: string): TrustProxy {
       'TRUST_PROXY=true would let any client fake its IP. List the proxy IPs/CIDRs instead.',
     );
   }
-
 
   if (/^[0-9]+$/.test(value)) {
     throw new Error('TRUST_PROXY must list proxy IPs/CIDRs, not a hop count.');
@@ -106,8 +104,6 @@ export function loadConfig(): AppConfig {
     schema,
     dotenv: false,
   });
-
-  
 
   return Object.freeze({
     nodeEnv: env.NODE_ENV,
