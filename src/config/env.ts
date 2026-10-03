@@ -71,12 +71,13 @@ export function parseTrustProxy(raw: string): TrustProxy {
 
   if (value === 'true') {
     throw new Error(
-      'TRUST_PROXY=true would let any client fake its IP. Use a hop count (e.g. 1) or proxy IPs/CIDRs.',
+      'TRUST_PROXY=true would let any client fake its IP. List the proxy IPs/CIDRs instead.',
     );
   }
 
+
   if (/^[0-9]+$/.test(value)) {
-    return Number(value);
+    throw new Error('TRUST_PROXY must list proxy IPs/CIDRs, not a hop count.');
   }
 
   const proxies = value
