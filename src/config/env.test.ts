@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { loadConfig, parseCorsOrigins } from './env.js';
+import { loadConfig, parseCorsOrigins, parseTrustProxy } from './env.js';
 
 const REQUIRED_ENV = {
   NODE_ENV: 'test',
@@ -23,6 +23,8 @@ const ALL_SCHEMA_KEYS = [
   'CORS_ORIGINS',
   'REDIS_URL',
   'REDIS_CONNECT_TIMEOUT_MS',
+  'TRUST_PROXY',
+  'RATE_LIMIT_HASH_SECRET',
 ];
 
 let originalEnv: NodeJS.ProcessEnv;
@@ -155,5 +157,64 @@ describe('parseCorsOrigins', () => {
     setEnv({ ...REQUIRED_ENV, CORS_ORIGINS: '*' });
 
     expect(() => loadConfig()).toThrowError(/CORS_ORIGINS/);
+  });
+});
+
+describe('parseTrustProxy', () => {
+  it.each([
+    ['', false],
+    ['false', false],
+    ['0', false],
+    ['10.0.0.1', ['10.0.0.1']],
+    ['10.0.0.0/8, 192.168.1.10', ['10.0.0.0/8', '192.168.1.10']],
+    ['2001:db8::/32', ['2001:db8::/32']],
+  ])('parses "%s"', (raw, expected) => {
+    expect(parseTrustProxy(raw)).toEqual(expected);
+  });
+
+  it('rejects "true" because any client could fake its IP', () => {
+    expect(() => parseTrustProxy('true')).toThrowError(/fake its IP/);
+  });
+
+  it.each(['1', '2'])('rejects hop count "%s"', (raw) => {
+    expect(() => parseTrustProxy(raw)).toThrowError(/not a hop count/);
+  });
+
+  it.each(['proxy.local', '10.0.0.0/33', '2001:db8::/129', '10.0.0.1/abc'])(
+    'rejects invalid entry "%s"',
+    (raw) => {
+      expect(() => parseTrustProxy(raw)).toThrowError(/TRUST_PROXY/);
+    },
+  );
+});
+
+describe('rate-limit config', () => {
+  it('defaults to not trusting proxies', () => {
+    setEnv(REQUIRED_ENV);
+
+    expect(loadConfig().http.trustProxy).toBe(false);
+  });
+
+  it('rejects a hash secret shorter than 16 characters', () => {
+    setEnv({ ...REQUIRED_ENV, RATE_LIMIT_HASH_SECRET: 'short' });
+
+    expect(() => loadConfig()).toThrowError(/RATE_LIMIT_HASH_SECRET/);
+  });
+
+  it('rejects the development hash secret in production', () => {
+    setEnv({ ...REQUIRED_ENV, NODE_ENV: 'production', CORS_ORIGINS: 'https://app.gridx.io' });
+
+    expect(() => loadConfig()).toThrowError(/RATE_LIMIT_HASH_SECRET/);
+  });
+
+  it('accepts a real hash secret in production', () => {
+    setEnv({
+      ...REQUIRED_ENV,
+      NODE_ENV: 'production',
+      CORS_ORIGINS: 'https://app.gridx.io',
+      RATE_LIMIT_HASH_SECRET: 'a-real-production-secret-value',
+    });
+
+    expect(loadConfig().rateLimit.hashSecret).toBe('a-real-production-secret-value');
   });
 });
