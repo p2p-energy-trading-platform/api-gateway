@@ -1,3 +1,5 @@
+export const DEV_RATE_LIMIT_HASH_SECRET = 'dev-only-rate-limit-secret';
+
 export const envSchema = {
   type: 'object',
 
@@ -65,6 +67,17 @@ export const envSchema = {
       type: 'integer',
       minimum: 100,
       default: 2000,
+    },
+
+    TRUST_PROXY: {
+      type: 'string',
+      default: 'false',
+    },
+
+    RATE_LIMIT_HASH_SECRET: {
+      type: 'string',
+      minLength: 16,
+      default: DEV_RATE_LIMIT_HASH_SECRET,
     },
   },
 } as const;
