@@ -2,9 +2,9 @@ import type { Interceptor } from '@connectrpc/connect';
 
 export interface RequestTracingContext {
   requestId?: string;
-  correlationId?: string;
-  traceparent?: string;
-  authorization?: string;
+  correlationId?: string | undefined;
+  traceparent?: string | undefined;
+  authorization?: string | undefined;
   userId?: string;
 }
 
