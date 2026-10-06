@@ -38,6 +38,14 @@ export const testConfig: AppConfig = {
     port: 9464,
   },
 
+  grpc: {
+    authServiceUrl: 'http://auth-service:50051',
+    defaultTimeoutMs: 5000,
+    tls: {
+      enabled: false,
+    },
+  },
+
   auth: {
     issuer: 'gridx-auth-service',
     audience: 'gridx-api-gateway',
