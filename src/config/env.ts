@@ -150,7 +150,7 @@ export function loadConfig(): AppConfig {
     services: {
       authGrpcTarget: env.AUTH_SERVICE_GRPC_TARGET,
     },
-    
+
     metrics: {
       host: env.METRICS_HOST,
       port: env.METRICS_PORT,

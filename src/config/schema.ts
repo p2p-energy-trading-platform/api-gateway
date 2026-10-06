@@ -82,7 +82,7 @@ export const envSchema = {
       pattern: '^[A-Za-z0-9.-]+:[0-9]{1,5}$',
       default: 'localhost:50051',
     },
-    
+
     METRICS_HOST: {
       type: 'string',
       minLength: 1,
