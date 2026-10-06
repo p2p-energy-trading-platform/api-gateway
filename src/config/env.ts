@@ -18,6 +18,8 @@ interface RawEnvironment {
   REDIS_CONNECT_TIMEOUT_MS: number;
   TRUST_PROXY: string;
   RATE_LIMIT_HASH_SECRET: string;
+  METRICS_HOST: string;
+  METRICS_PORT: number;
   AUTH_SERVICE_GRPC_URL: string;
   GRPC_DEFAULT_TIMEOUT_MS: number;
   GRPC_TLS_ENABLED: boolean;
@@ -142,6 +144,11 @@ export function loadConfig(): AppConfig {
 
     rateLimit: {
       hashSecret: env.RATE_LIMIT_HASH_SECRET,
+    },
+
+    metrics: {
+      host: env.METRICS_HOST,
+      port: env.METRICS_PORT,
     },
 
     grpc: {

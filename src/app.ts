@@ -1,12 +1,13 @@
 import { randomUUID } from 'node:crypto';
 
-import Fastify, { type FastifyInstance } from 'fastify';
+import Fastify, { LogController, type FastifyInstance } from 'fastify';
 
 import { validatorCompiler } from './common/validation.js';
 import type { AppConfig } from './config/types.js';
 import { registerErrorHandler } from './errors/error-handler.js';
 import { registerHealthRoutes } from './health/routes.js';
 import { createLoggerOptions } from './observability/logging.js';
+import observabilityPlugin from './plugins/observability.js';
 import rateLimitPlugin from './plugins/rate-limit.js';
 import redisPlugin from './plugins/redis.js';
 import { registerSecurity } from './plugins/security.js';
@@ -26,6 +27,12 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
 
   const app = Fastify({
     logger: createLoggerOptions(config),
+
+    // We write one structured log line per request ourselves (plugins/observability.ts).
+    logController: new LogController({
+      disableRequestLogging: true,
+      requestIdLogLabel: 'requestId',
+    }),
 
     bodyLimit: config.http.bodyLimitBytes,
 
@@ -75,6 +82,13 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
    */
   app.setValidatorCompiler(validatorCompiler);
   registerErrorHandler(app);
+
+  /*
+   * Observability: trace IDs, metrics, request logs.
+   * Registered before everything else (and before rate-limit) so all later hooks and logs
+   * already have a trace ID and the metrics are ready.
+   */
+  await app.register(observabilityPlugin);
 
   /*
    * Infrastructure plugins
