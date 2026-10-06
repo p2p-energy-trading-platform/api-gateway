@@ -13,7 +13,7 @@ const grpcPlugin: FastifyPluginAsync = fp(async (fastify) => {
   const tlsOptions = createTlsClientOptions(fastify.config['grpc']['tls']);
 
   const authTransport = createGrpcTransport({
-    baseUrl: `http://${fastify.config.services.authGrpcTarget}`,
+    baseUrl: fastify.config.grpc.authServiceUrl,
     ...(tlsOptions ? { nodeOptions: tlsOptions } : {}),
     interceptors: [
       createHeaderPropagationInterceptor(() => {
