@@ -33,10 +33,6 @@ export const testConfig: AppConfig = {
     hashSecret: 'test-rate-limit-secret',
   },
 
-  services: {
-    authGrpcTarget: 'auth-service:50051',
-  },
-  
   metrics: {
     host: '127.0.0.1',
     port: 9464,
