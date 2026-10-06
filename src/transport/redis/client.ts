@@ -1,14 +1,20 @@
-import { Redis, type Redis as RedisClient } from 'ioredis';
-import { type AppConfig } from '../../config/types.js';
+import { createClient, type RedisClientType } from 'redis';
 
-export function createRedisClient(config: AppConfig): RedisClient {
-  return new Redis(config.redis.url, {
-    lazyConnect: true,
+export type RedisClient = RedisClientType;
 
-    connectTimeout: config.redis.connectTimeoutMs,
+interface RedisClientOptions {
+  url: string;
+  onError?: (err: Error) => void;
+}
 
-    maxRetriesPerRequest: 1,
-
-    enableReadyCheck: true,
+export function createRedisClient(options: RedisClientOptions) {
+  const client = createClient({
+    url: options.url,
   });
+
+  if (options.onError) {
+    client.on('error', options.onError);
+  }
+
+  return client;
 }

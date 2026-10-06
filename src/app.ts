@@ -11,6 +11,8 @@ import rateLimitPlugin from './plugins/rate-limit.js';
 import redisPlugin from './plugins/redis.js';
 import { registerSecurity } from './plugins/security.js';
 import { registerCors } from './plugins/cors.js';
+import fastifyRequestContext from '@fastify/request-context';
+import grpcPlugin from './plugins/grpc.js';
 
 const REQUEST_ID_PATTERN = /^[A-Za-z0-9._:-]{1,128}$/;
 
@@ -42,6 +44,27 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
     },
   });
 
+  app.decorate('config', config);
+
+  // Initializes store and seeds tracing details for gRPC header propagation
+  await app.register(fastifyRequestContext, {
+    defaultStoreValues: (req) => ({
+      tracing: {
+        requestId: req.id,
+        correlationId:
+          (typeof req.headers['x-correlation-id'] === 'string'
+            ? req.headers['x-correlation-id']
+            : undefined) ?? req.id,
+        traceparent:
+          typeof req.headers['traceparent'] === 'string' ? req.headers['traceparent'] : undefined,
+        authorization:
+          typeof req.headers['authorization'] === 'string'
+            ? req.headers['authorization']
+            : undefined,
+      },
+    }),
+  });
+
   // Return the request ID so clients can quote it when reporting a problem.
   app.addHook('onRequest', async (request, reply) => {
     reply.header('x-request-id', request.id);
@@ -67,6 +90,8 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
     await app.register(rateLimitPlugin, {
       config,
     });
+
+    await app.register(grpcPlugin);
   }
 
   /*

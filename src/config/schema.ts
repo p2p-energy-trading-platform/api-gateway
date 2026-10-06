@@ -76,5 +76,34 @@ export const envSchema = {
       type: 'string',
       minLength: 16,
     },
+
+    AUTH_SERVICE_GRPC_URL: {
+      type: 'string',
+      minLength: 1,
+      default: 'http://auth-service:50051',
+    },
+
+    GRPC_DEFAULT_TIMEOUT_MS: {
+      type: 'integer',
+      minimum: 100,
+      default: 5000,
+    },
+
+    GRPC_TLS_ENABLED: {
+      type: 'boolean',
+      default: false,
+    },
+
+    GRPC_TLS_CA_PATH: {
+      type: 'string',
+    },
+
+    GRPC_TLS_CERT_PATH: {
+      type: 'string',
+    },
+
+    GRPC_TLS_KEY_PATH: {
+      type: 'string',
+    },
   },
 } as const;

@@ -18,6 +18,12 @@ interface RawEnvironment {
   REDIS_CONNECT_TIMEOUT_MS: number;
   TRUST_PROXY: string;
   RATE_LIMIT_HASH_SECRET: string;
+  AUTH_SERVICE_GRPC_URL: string;
+  GRPC_DEFAULT_TIMEOUT_MS: number;
+  GRPC_TLS_ENABLED: boolean;
+  GRPC_TLS_CA_PATH?: string;
+  GRPC_TLS_CERT_PATH?: string;
+  GRPC_TLS_KEY_PATH?: string;
 }
 
 export function parseCorsOrigins(raw: string, nodeEnv: NodeEnvironment): string[] {
@@ -136,6 +142,17 @@ export function loadConfig(): AppConfig {
 
     rateLimit: {
       hashSecret: env.RATE_LIMIT_HASH_SECRET,
+    },
+
+    grpc: {
+      authServiceUrl: env.AUTH_SERVICE_GRPC_URL,
+      defaultTimeoutMs: env.GRPC_DEFAULT_TIMEOUT_MS,
+      tls: {
+        enabled: env.GRPC_TLS_ENABLED,
+        caPath: env.GRPC_TLS_CA_PATH,
+        certPath: env.GRPC_TLS_CERT_PATH,
+        keyPath: env.GRPC_TLS_KEY_PATH,
+      },
     },
 
     auth: {
