@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { FastifyInstance } from 'fastify';
+import { Type } from 'typebox';
 
 import { buildApp } from '../../src/app.js';
 import { paginationQuerySchema, type PaginationQuery } from '../../src/common/pagination.js';
@@ -28,14 +29,11 @@ describe('request validation', () => {
       '/test/orders',
       {
         schema: {
-          body: strictObject(
-            {
-              email: emailSchema,
-              quantity: { type: 'integer', minimum: 1 },
-              price: nonNegativeDecimalSchema,
-            },
-            ['email', 'quantity', 'price'],
-          ),
+          body: strictObject({
+            email: emailSchema,
+            quantity: Type.Integer({ minimum: 1 }),
+            price: nonNegativeDecimalSchema,
+          }),
         },
       },
       async (request) => request.body,

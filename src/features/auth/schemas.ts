@@ -1,35 +1,19 @@
+import { Type, type Static } from 'typebox';
+
 import { emailSchema, strictObject } from '../../common/validation.js';
 
-export const registerBodySchema = strictObject(
-  {
-    email: emailSchema,
-    password: {
-      type: 'string',
-      minLength: 8,
-      maxLength: 128,
-    },
-  },
-  ['email', 'password'],
-);
+export const registerBodySchema = strictObject({
+  email: emailSchema,
+  password: Type.String({ minLength: 8, maxLength: 128 }),
+});
 
-export const registerResponseSchema = strictObject(
-  {
-    userId: { type: 'string' },
-    email: { type: 'string' },
-    status: { type: 'string' },
-    createdAt: { type: 'string' },
-  },
-  ['userId', 'email', 'status', 'createdAt'],
-);
+export const registerResponseSchema = strictObject({
+  userId: Type.String(),
+  email: Type.String(),
+  status: Type.String(),
+  createdAt: Type.String(),
+});
 
-export interface RegisterBody {
-  email: string;
-  password: string;
-}
+export type RegisterBody = Static<typeof registerBodySchema>;
 
-export interface RegisterResponse {
-  userId: string;
-  email: string;
-  status: string;
-  createdAt: string;
-}
+export type RegisterResponse = Static<typeof registerResponseSchema>;
