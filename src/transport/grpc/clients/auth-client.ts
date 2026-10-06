@@ -1,7 +1,7 @@
 import { createClient, type Client, type Transport } from "@connectrpc/connect";
 import { AuthService } from "@p2p-energy-trading-platform/typescript-sdk/gen/gridx/auth/v1/auth_pb";
 import { DEFAULT_GRPC_TIMEOUT_MS } from "../deadlines.js";
-import { parseGrpcError } from "../errors.js";
+import { toAppError } from "../errors.js";
 
 export class AuthGrpcClient {
     private readonly client: Client<typeof AuthService>;
@@ -19,7 +19,7 @@ export class AuthGrpcClient {
         try {
             return await this.client.login(params, { timeoutMs });
         } catch (err) {
-            throw parseGrpcError(err);
+            throw toAppError(err);
         }
     }
 
@@ -30,7 +30,7 @@ export class AuthGrpcClient {
         try {
             return await this.client.register(params, { timeoutMs });
         } catch (err) {
-            throw parseGrpcError(err);
+            throw toAppError(err);
         }
     }
 
@@ -41,7 +41,7 @@ export class AuthGrpcClient {
         try {
             return await this.client.refreshToken(params, { timeoutMs });
         } catch (err) {
-            throw parseGrpcError(err);
+            throw toAppError(err);
         }
     }
 
@@ -52,7 +52,7 @@ export class AuthGrpcClient {
         try {
             return await this.client.getUser(params, { timeoutMs });
         } catch (err) {
-            throw parseGrpcError(err);
+            throw toAppError(err);
         }
     }
 
@@ -63,7 +63,7 @@ export class AuthGrpcClient {
         try {
             return await this.client.checkPermission(params, { timeoutMs });
         } catch (err) {
-            throw parseGrpcError(err);
+            throw toAppError(err);
         }
     }
 }
