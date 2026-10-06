@@ -1,6 +1,7 @@
 import { Ajv, type Options } from 'ajv';
 import addFormats from 'ajv-formats';
 import type { FastifySchema, FastifySchemaCompiler } from 'fastify';
+import { Type, type Static, type TProperties } from 'typebox';
 
 /*
  * Validator settings
@@ -37,36 +38,32 @@ export const validatorCompiler: FastifySchemaCompiler<FastifySchema> = ({ schema
 
 /*
  * Shared schema fragments
+ *
+ * Schemas are written with TypeBox: each one is plain JSON Schema for Ajv, and Static<> derives
+ * the matching TypeScript type, so request and response shapes are defined once.
  */
-export const uuidSchema = { type: 'string', format: 'uuid' } as const;
+export const uuidSchema = Type.String({ format: 'uuid' });
 
-export const emailSchema = { type: 'string', format: 'email', maxLength: 254 } as const;
+export const emailSchema = Type.String({ format: 'email', maxLength: 254 });
 
-export const isoDateTimeSchema = { type: 'string', format: 'date-time' } as const;
+export const isoDateTimeSchema = Type.String({ format: 'date-time' });
 
 /*
  * Decimal amounts (energy, prices) are sent as strings to avoid floating-point rounding.
  */
-export const nonNegativeDecimalSchema = {
-  type: 'string',
+export const nonNegativeDecimalSchema = Type.String({
   pattern: '^(0|[1-9][0-9]*)(\\.[0-9]+)?$',
   maxLength: 32,
-} as const;
+});
 
-export function strictObject<const P extends Record<string, unknown>>(
-  properties: P,
-  required: readonly (keyof P & string)[] = [],
-) {
-  return {
-    type: 'object',
-    additionalProperties: false,
-    required,
-    properties,
-  } as const;
+/*
+ * An object that rejects unknown fields. Properties are required unless wrapped in
+ * Type.Optional().
+ */
+export function strictObject<P extends TProperties>(properties: P) {
+  return Type.Object(properties, { additionalProperties: false });
 }
 
-export const idParamsSchema = strictObject({ id: uuidSchema }, ['id']);
+export const idParamsSchema = strictObject({ id: uuidSchema });
 
-export interface IdParams {
-  id: string;
-}
+export type IdParams = Static<typeof idParamsSchema>;
