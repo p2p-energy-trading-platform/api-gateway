@@ -44,5 +44,4 @@ export class AuthGrpcClient {
       throw toAppError(err);
     }
   }
-
 }
