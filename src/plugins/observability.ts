@@ -24,7 +24,6 @@ const observabilityPlugin: FastifyPluginAsync = async (app) => {
     // Every log line written through request.log now includes traceId.
     request.log = request.log.child({ traceId: request.traceContext.traceId });
 
-
     const tracing = request.requestContext?.get('tracing');
 
     if (tracing !== undefined) {
