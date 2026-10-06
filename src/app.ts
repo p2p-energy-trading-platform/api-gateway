@@ -56,9 +56,7 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
             ? req.headers['x-correlation-id']
             : undefined) ?? req.id,
         traceparent:
-          typeof req.headers['traceparent'] === 'string'
-            ? req.headers['traceparent']
-            : undefined,
+          typeof req.headers['traceparent'] === 'string' ? req.headers['traceparent'] : undefined,
         authorization:
           typeof req.headers['authorization'] === 'string'
             ? req.headers['authorization']

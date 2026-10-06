@@ -2,7 +2,9 @@ import { readFileSync } from 'node:fs';
 import type { SecureClientSessionOptions } from 'node:http2';
 import type { AppConfig } from '../../config/types.js';
 
-export function createTlsClientOptions(tlsConfig: AppConfig['grpc']['tls']): SecureClientSessionOptions | undefined {
+export function createTlsClientOptions(
+  tlsConfig: AppConfig['grpc']['tls'],
+): SecureClientSessionOptions | undefined {
   if (!tlsConfig.enabled) {
     return undefined;
   }

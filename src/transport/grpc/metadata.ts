@@ -9,7 +9,7 @@ export interface RequestTracingContext {
 }
 
 export function createHeaderPropagationInterceptor(
-  ctxGetter: () => RequestTracingContext | undefined
+  ctxGetter: () => RequestTracingContext | undefined,
 ): Interceptor {
   return (next) => async (req) => {
     const ctx = ctxGetter();

@@ -1,7 +1,6 @@
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 
-
 import type { RateLimitPolicy } from '../../policies/rate-limits.js';
 import type { RedisClient } from './client.js';
 
@@ -26,8 +25,8 @@ export async function consumeRateLimit(
 ): Promise<RateLimitResult> {
   const options = {
     keys: [key],
-    arguments: [String(policy.limit), String(policy.windowMs)]
-  }
+    arguments: [String(policy.limit), String(policy.windowMs)],
+  };
 
   let raw: unknown;
 
