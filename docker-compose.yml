@@ -10,7 +10,7 @@ services:
     environment:
       REDIS_URL: redis://redis:6379
       METRICS_HOST: 0.0.0.0
-      
+
     ports:
       - "${API_GATEWAY_PORT:-8000}:3000"
 
