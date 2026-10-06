@@ -3,7 +3,6 @@ import { Writable } from 'node:stream';
 import Fastify, { LogController } from 'fastify';
 import { describe, expect, it } from 'vitest';
 
-import type {} from '../../../src/types/fastify.d.ts';
 import observabilityPlugin from '../../../src/plugins/observability.js';
 
 /*
