@@ -77,16 +77,27 @@ const rateLimitPlugin: FastifyPluginAsync<RateLimitPluginOptions> = async (app, 
     const identity = hashIdentity(config.rateLimit.hashSecret, normalizeClientIp(request.ip));
     const key = rateLimitKey(config.nodeEnv, policyName, identity);
 
+    const stopTimer = app.metrics.rateLimitDuration.startTimer({ policy: policyName });
+
     let result;
 
     try {
       result = await consumeRateLimit(app.redis, key, policy);
     } catch (error) {
       // Fail closed: without Redis the limit cannot be enforced, so the request is refused.
+      app.metrics.rateLimitErrors.inc({ policy: policyName });
       request.log.error({ err: error }, 'Rate limit check failed');
 
       throw new AppError('UPSTREAM_UNAVAILABLE');
+    } finally {
+      stopTimer();
     }
+
+    // The label is the policy NAME (e.g. "auth-login"), never the client IP or the Redis key.
+    app.metrics.rateLimitDecisions.inc({
+      policy: policyName,
+      result: result.allowed ? 'allowed' : 'denied',
+    });
 
     reply.header('ratelimit-limit', policy.limit);
     reply.header('ratelimit-remaining', result.remaining);
@@ -102,5 +113,5 @@ const rateLimitPlugin: FastifyPluginAsync<RateLimitPluginOptions> = async (app, 
 
 export default fp(rateLimitPlugin, {
   name: 'rate-limit',
-  dependencies: ['redis'],
+  dependencies: ['redis', 'observability'],
 });

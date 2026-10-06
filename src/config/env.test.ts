@@ -26,6 +26,8 @@ const ALL_SCHEMA_KEYS = [
   'TRUST_PROXY',
   'RATE_LIMIT_HASH_SECRET',
   'AUTH_SERVICE_GRPC_TARGET',
+  'METRICS_HOST',
+  'METRICS_PORT',
 ];
 
 let originalEnv: NodeJS.ProcessEnv;
@@ -188,6 +190,23 @@ describe('parseTrustProxy', () => {
       expect(() => parseTrustProxy(raw)).toThrowError(/TRUST_PROXY/);
     },
   );
+});
+
+describe('metrics config', () => {
+  it('defaults to an internal-only host and port 9464', () => {
+    setEnv(REQUIRED_ENV);
+
+    const config = loadConfig();
+
+    expect(config.metrics.host).toBe('127.0.0.1');
+    expect(config.metrics.port).toBe(9464);
+  });
+
+  it('throws when METRICS_PORT is out of range', () => {
+    setEnv({ ...REQUIRED_ENV, METRICS_PORT: '70000' });
+
+    expect(() => loadConfig()).toThrowError(/METRICS_PORT/);
+  });
 });
 
 describe('rate-limit config', () => {

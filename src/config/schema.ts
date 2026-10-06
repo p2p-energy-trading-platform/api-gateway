@@ -82,6 +82,19 @@ export const envSchema = {
       pattern: '^[A-Za-z0-9.-]+:[0-9]{1,5}$',
       default: 'localhost:50051',
     },
+    
+    METRICS_HOST: {
+      type: 'string',
+      minLength: 1,
+      default: '127.0.0.1',
+    },
+
+    METRICS_PORT: {
+      type: 'integer',
+      minimum: 1,
+      maximum: 65535,
+      default: 9464,
+    },
 
     AUTH_SERVICE_GRPC_URL: {
       type: 'string',

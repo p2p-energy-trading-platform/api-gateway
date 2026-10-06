@@ -19,6 +19,8 @@ interface RawEnvironment {
   TRUST_PROXY: string;
   RATE_LIMIT_HASH_SECRET: string;
   AUTH_SERVICE_GRPC_TARGET: string;
+  METRICS_HOST: string;
+  METRICS_PORT: number;
   AUTH_SERVICE_GRPC_URL: string;
   GRPC_DEFAULT_TIMEOUT_MS: number;
   GRPC_TLS_ENABLED: boolean;
@@ -147,6 +149,11 @@ export function loadConfig(): AppConfig {
 
     services: {
       authGrpcTarget: env.AUTH_SERVICE_GRPC_TARGET,
+    },
+    
+    metrics: {
+      host: env.METRICS_HOST,
+      port: env.METRICS_PORT,
     },
 
     grpc: {

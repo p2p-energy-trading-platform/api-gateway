@@ -36,6 +36,11 @@ export const testConfig: AppConfig = {
   services: {
     authGrpcTarget: 'auth-service:50051',
   },
+  
+  metrics: {
+    host: '127.0.0.1',
+    port: 9464,
+  },
 
   grpc: {
     authServiceUrl: 'http://auth-service:50051',
