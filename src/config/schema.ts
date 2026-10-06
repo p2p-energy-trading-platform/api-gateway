@@ -76,5 +76,18 @@ export const envSchema = {
       type: 'string',
       minLength: 16,
     },
+
+    METRICS_HOST: {
+      type: 'string',
+      minLength: 1,
+      default: '127.0.0.1',
+    },
+
+    METRICS_PORT: {
+      type: 'integer',
+      minimum: 1,
+      maximum: 65535,
+      default: 9464,
+    },
   },
 } as const;
