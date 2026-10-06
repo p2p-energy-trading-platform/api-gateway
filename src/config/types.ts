@@ -34,6 +34,17 @@ export interface AppConfig {
     hashSecret: string;
   };
 
+  grpc: {
+    authServiceUrl: string;
+    defaultTimeoutMs: number;
+    tls: {
+      enabled: boolean;
+      caPath?: string | undefined;
+      certPath?: string | undefined;
+      keyPath?: string | undefined;
+    };
+  };
+
   auth: {
     issuer: string;
     audience: string;
