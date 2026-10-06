@@ -34,10 +34,6 @@ export interface AppConfig {
     hashSecret: string;
   };
 
-  services: {
-    authGrpcTarget: string;
-  };
-
   grpc: {
     authServiceUrl: string;
     defaultTimeoutMs: number;
