@@ -13,6 +13,7 @@ import { registerSecurity } from './plugins/security.js';
 import { registerCors } from './plugins/cors.js';
 import fastifyRequestContext from '@fastify/request-context';
 import grpcPlugin from './plugins/grpc.js';
+import { registerAuthRoutes } from './features/auth/routes.js';
 
 const REQUEST_ID_PATTERN = /^[A-Za-z0-9._:-]{1,128}$/;
 
@@ -98,6 +99,7 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
    * Routes
    */
   await registerHealthRoutes(app);
+  await registerAuthRoutes(app);
 
   return app;
 }
