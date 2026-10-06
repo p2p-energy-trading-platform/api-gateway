@@ -33,6 +33,11 @@ export const testConfig: AppConfig = {
     hashSecret: 'test-rate-limit-secret',
   },
 
+  metrics: {
+    host: '127.0.0.1',
+    port: 9464,
+  },
+
   auth: {
     issuer: 'gridx-auth-service',
     audience: 'gridx-api-gateway',
