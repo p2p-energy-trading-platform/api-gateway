@@ -77,12 +77,6 @@ export const envSchema = {
       minLength: 16,
     },
 
-    AUTH_SERVICE_GRPC_TARGET: {
-      type: 'string',
-      pattern: '^[A-Za-z0-9.-]+:[0-9]{1,5}$',
-      default: 'localhost:50051',
-    },
-
     METRICS_HOST: {
       type: 'string',
       minLength: 1,

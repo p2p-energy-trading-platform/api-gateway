@@ -25,7 +25,6 @@ const ALL_SCHEMA_KEYS = [
   'REDIS_CONNECT_TIMEOUT_MS',
   'TRUST_PROXY',
   'RATE_LIMIT_HASH_SECRET',
-  'AUTH_SERVICE_GRPC_TARGET',
   'METRICS_HOST',
   'METRICS_PORT',
 ];
@@ -64,7 +63,6 @@ describe('loadConfig', () => {
     expect(config.service.name).toBe('api-gateway');
     expect(config.http.port).toBe(3000);
     expect(config.redis.url).toBe('redis://localhost:6379');
-    expect(config.services.authGrpcTarget).toBe('localhost:50051');
   });
 
   it('applies documented defaults for optional env vars', () => {
