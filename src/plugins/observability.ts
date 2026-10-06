@@ -2,7 +2,7 @@ import fp from 'fastify-plugin';
 import type { FastifyPluginAsync, FastifyRequest } from 'fastify';
 
 import { createMetrics } from '../observability/metrics.js';
-import { getTraceContext, type TraceContext } from '../observability/tracing.js';
+import { getTraceContext, toTraceparent, type TraceContext } from '../observability/tracing.js';
 
 const observabilityPlugin: FastifyPluginAsync = async (app) => {
   const metrics = createMetrics();
@@ -23,6 +23,16 @@ const observabilityPlugin: FastifyPluginAsync = async (app) => {
 
     // Every log line written through request.log now includes traceId.
     request.log = request.log.child({ traceId: request.traceContext.traceId });
+
+
+    const tracing = request.requestContext?.get('tracing');
+
+    if (tracing !== undefined) {
+      request.requestContext.set('tracing', {
+        ...tracing,
+        traceparent: toTraceparent(request.traceContext),
+      });
+    }
   });
 
   // 2. In-flight gauge goes up.
