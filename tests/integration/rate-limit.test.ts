@@ -182,6 +182,22 @@ describe('rate limiting', () => {
     expect(ttl).toBeLessThanOrEqual(60_000);
   });
 
+  it('counts allowed and denied decisions per policy in metrics', async () => {
+    const app = await build();
+
+    await send(app, 11, login);
+
+    const text = await app.metrics.registry.metrics();
+
+    expect(text).toContain(
+      'gateway_rate_limit_decisions_total{policy="auth-login",result="allowed"} 10',
+    );
+    expect(text).toContain(
+      'gateway_rate_limit_decisions_total{policy="auth-login",result="denied"} 1',
+    );
+    expect(text).toContain('gateway_rate_limit_duration_seconds_count{policy="auth-login"} 11');
+  });
+
   it('returns 503 and becomes unready when Redis is unavailable', async () => {
     const app = await build();
 
@@ -190,8 +206,11 @@ describe('rate limiting', () => {
     const response = await app.inject({ method: 'GET', url: '/test/public' });
     const readiness = await app.inject({ method: 'GET', url: '/health/ready' });
 
+    const text = await app.metrics.registry.metrics();
+
     expect(response.statusCode).toBe(503);
     expect(response.json().error.code).toBe('UPSTREAM_UNAVAILABLE');
     expect(readiness.statusCode).toBe(503);
+     expect(text).toContain('gateway_rate_limit_errors_total{policy="public-read"} 1');
   });
 });
