@@ -43,4 +43,9 @@ export interface AppConfig {
     jwksCacheTtlSeconds: number;
     jwksRequestTimeoutMs: number;
   };
+
+  metrics: {
+    host: string;
+    port: number;
+  };
 }
