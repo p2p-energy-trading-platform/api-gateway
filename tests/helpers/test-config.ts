@@ -33,6 +33,14 @@ export const testConfig: AppConfig = {
     hashSecret: 'test-rate-limit-secret',
   },
 
+  grpc: {
+    authServiceUrl: 'http://auth-service:50051',
+    defaultTimeoutMs: 5000,
+    tls: {
+      enabled: false,
+    },
+  },
+
   auth: {
     issuer: 'gridx-auth-service',
     audience: 'gridx-api-gateway',
