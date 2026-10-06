@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { registerHandler } from './handler.js';
-import { registerBodySchema } from './schemas.js';
+import { registerBodySchema, registerResponseSchema } from './schemas.js';
 
 export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
   app.post(
@@ -11,6 +11,9 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
       },
       schema: {
         body: registerBodySchema,
+        response: {
+          201: registerResponseSchema,
+        },
       },
     },
     registerHandler,
