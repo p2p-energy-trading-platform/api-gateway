@@ -1,8 +1,8 @@
-import type Redis from 'ioredis';
-import type { AppConfig } from '../config/types.ts';
-import type { GrpcClients } from '../plugins/grpc.ts';
+import type { AppConfig } from '../config/types.js';
+import type { GrpcClients } from '../plugins/grpc.js';
 import '@fastify/request-context';
 import type { RequestTracingContext } from '../transport/grpc/metadata.js';
+import type { RedisClient } from '../transport/redis/client.js';
 
 declare module '@fastify/request-context' {
   interface RequestContextData {
@@ -13,7 +13,7 @@ declare module '@fastify/request-context' {
 declare module 'fastify' {
   interface FastifyInstance {
     config: AppConfig;
-    redis: Redis;
+    redis: RedisClient;
     grpcClients: GrpcClients;
   }
 }
