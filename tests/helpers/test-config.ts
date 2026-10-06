@@ -33,6 +33,10 @@ export const testConfig: AppConfig = {
     hashSecret: 'test-rate-limit-secret',
   },
 
+  services: {
+    authGrpcTarget: 'auth-service:50051',
+  },
+
   grpc: {
     authServiceUrl: 'http://auth-service:50051',
     defaultTimeoutMs: 5000,
