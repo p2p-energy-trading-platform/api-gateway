@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 
-import Fastify, { type FastifyInstance } from 'fastify';
+import Fastify, { LogController, type FastifyInstance } from 'fastify';
 
 import { validatorCompiler } from './common/validation.js';
 import type { AppConfig } from './config/types.js';
@@ -27,8 +27,10 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
     logger: createLoggerOptions(config),
 
     // We write one structured log line per request ourselves (plugins/observability.ts).
-    disableRequestLogging: true,
-    requestIdLogLabel: 'requestId',
+    logController: new LogController({
+      disableRequestLogging: true,
+      requestIdLogLabel: 'requestId',
+    }),
 
     bodyLimit: config.http.bodyLimitBytes,
 
