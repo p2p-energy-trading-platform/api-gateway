@@ -7,6 +7,7 @@ import type { AppConfig } from './config/types.js';
 import { registerErrorHandler } from './errors/error-handler.js';
 import { registerHealthRoutes } from './health/routes.js';
 import { createLoggerOptions } from './observability/logging.js';
+import authenticationPlugin from './plugins/authentication.js';
 import observabilityPlugin from './plugins/observability.js';
 import rateLimitPlugin from './plugins/rate-limit.js';
 import redisPlugin from './plugins/redis.js';
@@ -60,15 +61,12 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
       tracing: {
         requestId: req.id,
         correlationId:
-          (typeof req.headers['x-correlation-id'] === 'string'
+          typeof req.headers['x-correlation-id'] === 'string' &&
+          REQUEST_ID_PATTERN.test(req.headers['x-correlation-id'])
             ? req.headers['x-correlation-id']
-            : undefined) ?? req.id,
+            : req.id,
         traceparent:
           typeof req.headers['traceparent'] === 'string' ? req.headers['traceparent'] : undefined,
-        authorization:
-          typeof req.headers['authorization'] === 'string'
-            ? req.headers['authorization']
-            : undefined,
       },
     }),
   });
@@ -103,6 +101,10 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
     });
 
     await app.register(rateLimitPlugin, {
+      config,
+    });
+
+    await app.register(authenticationPlugin, {
       config,
     });
 
