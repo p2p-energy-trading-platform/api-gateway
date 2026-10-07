@@ -4,7 +4,7 @@ export interface RequestTracingContext {
   requestId?: string;
   correlationId?: string | undefined;
   traceparent?: string | undefined;
-  userId?: string; 
+  userId?: string;
 }
 
 export function createHeaderPropagationInterceptor(

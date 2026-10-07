@@ -116,7 +116,6 @@ export function parseTrustProxy(raw: string): TrustProxy {
   return proxies;
 }
 
-
 export function parseAllowedAlgorithms(raw: string): string[] {
   const algorithms = raw
     .split(',')
