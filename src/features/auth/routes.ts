@@ -12,6 +12,7 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
     {
       config: {
         rateLimit: 'auth-register',
+        auth: 'public',
       },
       schema: {
         body: registerBodySchema,

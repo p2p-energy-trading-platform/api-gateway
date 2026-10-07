@@ -7,7 +7,7 @@ export async function registerHealthRoutes(app: FastifyInstance): Promise<void> 
   app.get(
     '/health/live',
     {
-      config: { rateLimit: false },
+      config: { rateLimit: false, auth: 'public' },
       schema: {
         tags: ['health'],
         response: {
@@ -33,7 +33,7 @@ export async function registerHealthRoutes(app: FastifyInstance): Promise<void> 
   app.get(
     '/health/ready',
     {
-      config: { rateLimit: false },
+      config: { rateLimit: false, auth: 'public' },
       schema: {
         tags: ['health'],
         response: {
