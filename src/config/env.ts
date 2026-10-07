@@ -26,7 +26,16 @@ interface RawEnvironment {
   GRPC_TLS_CA_PATH?: string;
   GRPC_TLS_CERT_PATH?: string;
   GRPC_TLS_KEY_PATH?: string;
+  AUTH_ISSUER: string;
+  AUTH_AUDIENCE: string;
+  AUTH_JWKS_URI: string;
+  AUTH_ALLOWED_ALGORITHMS: string;
+  AUTH_CLOCK_TOLERANCE_SECONDS: number;
+  AUTH_JWKS_CACHE_TTL_SECONDS: number;
+  AUTH_JWKS_REQUEST_TIMEOUT_MS: number;
 }
+
+const SUPPORTED_JWT_ALGORITHMS = ['EdDSA', 'ES256', 'RS256'];
 
 export function parseCorsOrigins(raw: string, nodeEnv: NodeEnvironment): string[] {
   const origins = raw
@@ -107,6 +116,28 @@ export function parseTrustProxy(raw: string): TrustProxy {
   return proxies;
 }
 
+
+export function parseAllowedAlgorithms(raw: string): string[] {
+  const algorithms = raw
+    .split(',')
+    .map((algorithm) => algorithm.trim())
+    .filter(Boolean);
+
+  if (algorithms.length === 0) {
+    throw new Error('AUTH_ALLOWED_ALGORITHMS must contain at least one algorithm.');
+  }
+
+  for (const algorithm of algorithms) {
+    if (!SUPPORTED_JWT_ALGORITHMS.includes(algorithm)) {
+      throw new Error(
+        `AUTH_ALLOWED_ALGORITHMS contains an unsupported algorithm: "${algorithm}" (supported: ${SUPPORTED_JWT_ALGORITHMS.join(', ')}).`,
+      );
+    }
+  }
+
+  return algorithms;
+}
+
 export function loadConfig(): AppConfig {
   const env = envSchema<RawEnvironment>({
     schema,
@@ -163,13 +194,13 @@ export function loadConfig(): AppConfig {
     },
 
     auth: {
-      issuer: '',
-      audience: '',
-      jwksUri: '',
-      allowedAlgorithms: ['RS256', 'EDDSA'],
-      clockToleranceSeconds: 5,
-      jwksCacheTtlSeconds: 300,
-      jwksRequestTimeoutMs: 2000,
+      issuer: env.AUTH_ISSUER,
+      audience: env.AUTH_AUDIENCE,
+      jwksUri: env.AUTH_JWKS_URI,
+      allowedAlgorithms: parseAllowedAlgorithms(env.AUTH_ALLOWED_ALGORITHMS),
+      clockToleranceSeconds: env.AUTH_CLOCK_TOLERANCE_SECONDS,
+      jwksCacheTtlSeconds: env.AUTH_JWKS_CACHE_TTL_SECONDS,
+      jwksRequestTimeoutMs: env.AUTH_JWKS_REQUEST_TIMEOUT_MS,
     },
   });
 }
