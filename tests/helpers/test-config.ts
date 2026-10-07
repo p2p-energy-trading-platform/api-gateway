@@ -50,7 +50,7 @@ export const testConfig: AppConfig = {
     issuer: 'gridx-auth-service',
     audience: 'gridx-api-gateway',
     jwksUri: 'http://localhost:8080/.well-known/jwks.json',
-    allowedAlgorithms: ['RS256'],
+    allowedAlgorithms: ['EdDSA'],
     clockToleranceSeconds: 5,
     jwksCacheTtlSeconds: 300,
     jwksRequestTimeoutMs: 2_000,

@@ -4,7 +4,6 @@ export interface RequestTracingContext {
   requestId?: string;
   correlationId?: string | undefined;
   traceparent?: string | undefined;
-  authorization?: string | undefined;
   userId?: string;
 }
 
@@ -17,7 +16,6 @@ export function createHeaderPropagationInterceptor(
       if (ctx.requestId) req.header.set('x-request-id', ctx.requestId);
       if (ctx.correlationId) req.header.set('x-correlation-id', ctx.correlationId);
       if (ctx.traceparent) req.header.set('traceparent', ctx.traceparent);
-      if (ctx.authorization) req.header.set('authorization', ctx.authorization);
       if (ctx.userId) req.header.set('x-gridx-user-id', ctx.userId);
     }
     return await next(req);
