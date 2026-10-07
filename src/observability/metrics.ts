@@ -52,6 +52,13 @@ export function createMetrics() {
     registers: [registry],
   });
 
+  const authOutcomes = new Counter({
+    name: 'gateway_auth_outcomes_total',
+    help: 'Access-token checks by result (success, missing, malformed, expired, invalid, unavailable).',
+    labelNames: ['result'] as const,
+    registers: [registry],
+  });
+
   return {
     registry,
     httpRequests,
@@ -60,6 +67,7 @@ export function createMetrics() {
     rateLimitDecisions,
     rateLimitErrors,
     rateLimitDuration,
+    authOutcomes,
   };
 }
 
