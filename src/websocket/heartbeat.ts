@@ -5,8 +5,8 @@ export interface HeartbeatTarget {
 }
 
 /*
-  * Checks the heartbeat of each target. If a target is not alive, it is terminated. Otherwise, it is pinged and marked as not alive.
-*/
+ * Checks the heartbeat of each target. If a target is not alive, it is terminated. Otherwise, it is pinged and marked as not alive.
+ */
 export function checkHeartbeats(targets: Iterable<HeartbeatTarget>): number {
   let terminated = 0;
 

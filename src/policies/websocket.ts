@@ -16,7 +16,7 @@ export const websocketLimits = {
 
 export type WebsocketLimits = { [K in keyof typeof websocketLimits]: number };
 
-// WebSocket close codes 
+// WebSocket close codes
 export const CloseCode = {
   NORMAL: 1000,
   GOING_AWAY: 1001,

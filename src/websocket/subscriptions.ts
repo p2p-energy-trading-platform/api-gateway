@@ -3,7 +3,6 @@ import { resolveTopicKey, topicNameForKey } from './authorization.js';
 import type { ClientConnection } from './connection.js';
 import { errorMessage, eventMessage, subscribedMessage } from './protocol.js';
 
-
 export class SubscriptionManager {
   private readonly connectionsByKey = new Map<string, Set<ClientConnection>>();
 
