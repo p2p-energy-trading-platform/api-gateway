@@ -15,10 +15,7 @@ export function userTopicKey(userId: string): string {
   return `${USER_KEY_PREFIX}${userId}`;
 }
 
-export function resolveTopicKey(
-  topic: string,
-  user: WebsocketUser,
-): string | null {
+export function resolveTopicKey(topic: string, user: WebsocketUser): string | null {
   if (topic === USER_SELF_TOPIC) {
     return userTopicKey(user.userId);
   }
