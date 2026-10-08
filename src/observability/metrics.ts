@@ -59,6 +59,25 @@ export function createMetrics() {
     registers: [registry],
   });
 
+  const wsConnections = new Gauge({
+    name: 'gateway_ws_connections',
+    help: 'Open WebSocket connections on this instance.',
+    registers: [registry],
+  });
+
+  const wsSubscriptions = new Gauge({
+    name: 'gateway_ws_subscriptions',
+    help: 'Active WebSocket topic subscriptions on this instance.',
+    registers: [registry],
+  });
+
+  const wsCloses = new Counter({
+    name: 'gateway_ws_closes_total',
+    help: 'Closed WebSocket connections by close code (1000 normal, 1001 shutdown, 1006 lost, 1008 policy, 1009 too big).',
+    labelNames: ['code'] as const,
+    registers: [registry],
+  });
+
   return {
     registry,
     httpRequests,
@@ -68,6 +87,9 @@ export function createMetrics() {
     rateLimitErrors,
     rateLimitDuration,
     authOutcomes,
+    wsConnections,
+    wsSubscriptions,
+    wsCloses,
   };
 }
 
