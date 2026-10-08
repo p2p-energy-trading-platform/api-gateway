@@ -74,7 +74,8 @@ const rateLimitPlugin: FastifyPluginAsync<RateLimitPluginOptions> = async (app, 
     }
 
     const policy = rateLimitPolicies[policyName];
-    const identity = hashIdentity(config.rateLimit.hashSecret, normalizeClientIp(request.ip));
+    const clientIp = typeof request.ip === 'string' ? request.ip : 'unknown';
+    const identity = hashIdentity(config.rateLimit.hashSecret, normalizeClientIp(clientIp));
     const key = rateLimitKey(config.nodeEnv, policyName, identity);
 
     const stopTimer = app.metrics.rateLimitDuration.startTimer({ policy: policyName });
