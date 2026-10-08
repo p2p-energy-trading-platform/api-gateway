@@ -14,6 +14,7 @@ export const rateLimitPolicies = {
   'auth-refresh': { limit: 10, windowMs: ONE_MINUTE_MS },
   'auth-password-reset': { limit: 10, windowMs: ONE_MINUTE_MS },
   'auth-register': { limit: 5, windowMs: ONE_MINUTE_MS },
+  'websocket-connect': { limit: 20, windowMs: ONE_MINUTE_MS },
 } as const satisfies Record<string, RateLimitPolicy>;
 
 export type RateLimitPolicyName = keyof typeof rateLimitPolicies;
