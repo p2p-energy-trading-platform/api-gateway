@@ -8,6 +8,8 @@ import { registerErrorHandler } from './errors/error-handler.js';
 import { registerHealthRoutes } from './health/routes.js';
 import { createLoggerOptions } from './observability/logging.js';
 import authenticationPlugin from './plugins/authentication.js';
+import websocketPlugin from './plugins/websocket.js';
+import { registerWebsocketRoutes } from './features/websocket/routes.js';
 import observabilityPlugin from './plugins/observability.js';
 import rateLimitPlugin from './plugins/rate-limit.js';
 import redisPlugin from './plugins/redis.js';
@@ -108,6 +110,10 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
       config,
     });
 
+    await app.register(websocketPlugin, {
+      config,
+    });
+
     await app.register(grpcPlugin);
   }
 
@@ -116,6 +122,10 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
    */
   await registerHealthRoutes(app);
   await registerAuthRoutes(app);
+
+  if (registerInfrastructure) {
+    await registerWebsocketRoutes(app);
+  }
 
   return app;
 }
