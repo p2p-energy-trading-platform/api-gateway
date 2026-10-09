@@ -21,12 +21,29 @@ const ALL_SCHEMA_KEYS = [
   'BODY_LIMIT_BYTES',
   'REQUEST_TIMEOUT_MS',
   'CORS_ORIGINS',
+  'COOKIE_SECURE',
+  'COOKIE_SAME_SITE',
+  'COOKIE_DOMAIN',
+  'REFRESH_COOKIE_MAX_AGE_SECONDS',
   'REDIS_URL',
   'REDIS_CONNECT_TIMEOUT_MS',
   'TRUST_PROXY',
   'RATE_LIMIT_HASH_SECRET',
   'METRICS_HOST',
   'METRICS_PORT',
+  'AUTH_SERVICE_GRPC_URL',
+  'GRPC_DEFAULT_TIMEOUT_MS',
+  'GRPC_TLS_ENABLED',
+  'GRPC_TLS_CA_PATH',
+  'GRPC_TLS_CERT_PATH',
+  'GRPC_TLS_KEY_PATH',
+  'AUTH_ISSUER',
+  'AUTH_AUDIENCE',
+  'AUTH_JWKS_URI',
+  'AUTH_ALLOWED_ALGORITHMS',
+  'AUTH_CLOCK_TOLERANCE_SECONDS',
+  'AUTH_JWKS_CACHE_TTL_SECONDS',
+  'AUTH_JWKS_REQUEST_TIMEOUT_MS',
 ];
 
 let originalEnv: NodeJS.ProcessEnv;
@@ -73,6 +90,28 @@ describe('loadConfig', () => {
     expect(config.http.host).toBe('0.0.0.0');
     expect(config.logging.level).toBe('info');
     expect(config.cors.origins).toEqual(['http://localhost:5173']);
+    expect(config.cookies).toEqual({
+      secure: true,
+      sameSite: 'lax',
+      refreshMaxAgeSeconds: 2_592_000,
+    });
+  });
+
+  it('rejects insecure cookies in production', () => {
+    setEnv({
+      ...REQUIRED_ENV,
+      NODE_ENV: 'production',
+      CORS_ORIGINS: 'https://app.gridx.io',
+      COOKIE_SECURE: 'false',
+    });
+
+    expect(() => loadConfig()).toThrowError(/COOKIE_SECURE/);
+  });
+
+  it('rejects SameSite none without secure cookies', () => {
+    setEnv({ ...REQUIRED_ENV, COOKIE_SECURE: 'false', COOKIE_SAME_SITE: 'none' });
+
+    expect(() => loadConfig()).toThrowError(/COOKIE_SAME_SITE/);
   });
 
   it('throws a clear error when a required env var is missing', () => {
