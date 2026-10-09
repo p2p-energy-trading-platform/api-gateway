@@ -3,6 +3,7 @@ import type { FastifyPluginAsync, FastifyRequest } from 'fastify';
 import { createRemoteJWKSet, errors, jwtVerify, type JWTPayload } from 'jose';
 
 import type { AppConfig } from '../config/types.js';
+import { ACCESS_COOKIE_NAME } from '../features/auth/cookies.js';
 import { AppError } from '../errors/app-error.js';
 import { DEFAULT_ROUTE_AUTH_POLICY, type RouteAuthPolicy } from '../policies/route-auth.js';
 import type { AuthenticatedPrincipal } from '../types/authentication.js';
@@ -26,6 +27,7 @@ export interface AuthenticationPluginOptions {
 const JWKS_COOLDOWN_MS = 30_000;
 
 const BEARER_TOKEN = /^Bearer ([A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+)$/i;
+const JWT_FORMAT = /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/;
 
 // Safe reason categories for logs and metrics. Never log the token itself.
 type AuthFailure = 'missing' | 'malformed' | 'expired' | 'invalid' | 'unavailable';
@@ -36,20 +38,34 @@ class AuthenticationFailure extends Error {
   }
 }
 
-function readBearerToken(request: FastifyRequest): string | undefined {
+/*
+ * Browsers send the access token in the httpOnly cookie; other clients (mobile, services) send
+ * a Bearer header. The header wins when both are present.
+ */
+function readAccessToken(request: FastifyRequest): string | undefined {
   const header = request.headers.authorization;
 
-  if (header === undefined) {
+  if (header !== undefined) {
+    const token = BEARER_TOKEN.exec(header)?.[1];
+
+    if (token === undefined) {
+      throw new AuthenticationFailure('malformed');
+    }
+
+    return token;
+  }
+
+  const cookie = request.cookies[ACCESS_COOKIE_NAME];
+
+  if (cookie === undefined || cookie === '') {
     return undefined;
   }
 
-  const token = BEARER_TOKEN.exec(header)?.[1];
-
-  if (token === undefined) {
+  if (!JWT_FORMAT.test(cookie)) {
     throw new AuthenticationFailure('malformed');
   }
 
-  return token;
+  return cookie;
 }
 
 function readScopes(payload: JWTPayload): string[] {
@@ -155,7 +171,7 @@ const authenticationPlugin: FastifyPluginAsync<AuthenticationPluginOptions> = as
     }
 
     try {
-      const token = readBearerToken(request);
+      const token = readAccessToken(request);
 
       if (token === undefined) {
         if (policy === 'optional') {
@@ -196,5 +212,5 @@ const authenticationPlugin: FastifyPluginAsync<AuthenticationPluginOptions> = as
 
 export default fp(authenticationPlugin, {
   name: 'authentication',
-  dependencies: ['observability'],
+  dependencies: ['observability', '@fastify/cookie'],
 });
