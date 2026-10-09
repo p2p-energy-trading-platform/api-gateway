@@ -12,6 +12,7 @@ export const rateLimitPolicies = {
   'authenticated-write': { limit: 100, windowMs: ONE_MINUTE_MS },
   'auth-login': { limit: 10, windowMs: ONE_MINUTE_MS },
   'auth-refresh': { limit: 10, windowMs: ONE_MINUTE_MS },
+  'auth-logout': { limit: 10, windowMs: ONE_MINUTE_MS },
   'auth-password-reset': { limit: 10, windowMs: ONE_MINUTE_MS },
   'auth-register': { limit: 5, windowMs: ONE_MINUTE_MS },
   'websocket-connect': { limit: 20, windowMs: ONE_MINUTE_MS },

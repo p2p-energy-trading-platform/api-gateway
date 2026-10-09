@@ -56,6 +56,28 @@ export const envSchema = {
       default: 'http://localhost:5173',
     },
 
+    COOKIE_SECURE: {
+      type: 'boolean',
+      default: true,
+    },
+
+    COOKIE_SAME_SITE: {
+      type: 'string',
+      enum: ['lax', 'strict', 'none'],
+      default: 'lax',
+    },
+
+    COOKIE_DOMAIN: {
+      type: 'string',
+      minLength: 1,
+    },
+
+    REFRESH_COOKIE_MAX_AGE_SECONDS: {
+      type: 'integer',
+      minimum: 1,
+      default: 2592000,
+    },
+
     REDIS_URL: {
       type: 'string',
       pattern: '^rediss?://.+',

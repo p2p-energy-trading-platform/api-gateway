@@ -1,5 +1,6 @@
 export type NodeEnvironment = 'development' | 'test' | 'production';
 export type TrustProxy = false | string[];
+export type CookieSameSite = 'lax' | 'strict' | 'none';
 
 export interface AppConfig {
   nodeEnv: NodeEnvironment;
@@ -23,6 +24,13 @@ export interface AppConfig {
 
   cors: {
     origins: string[];
+  };
+
+  cookies: {
+    secure: boolean;
+    sameSite: CookieSameSite;
+    domain?: string | undefined;
+    refreshMaxAgeSeconds: number;
   };
 
   redis: {

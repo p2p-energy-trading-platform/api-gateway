@@ -45,6 +45,17 @@ export class AuthGrpcClient {
     }
   }
 
+  async logout(
+    params: Parameters<Client<typeof AuthService>['logout']>[0],
+    timeoutMs = this.defaultTimeoutMs,
+  ) {
+    try {
+      return await this.client.logout(params, { timeoutMs });
+    } catch (err) {
+      throw toAppError(err);
+    }
+  }
+
   async getUser(
     params: Parameters<Client<typeof AuthService>['getUser']>[0],
     timeoutMs = this.defaultTimeoutMs,

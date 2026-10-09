@@ -1,8 +1,20 @@
 import type { TypeBoxTypeProvider } from '@fastify/type-provider-typebox';
 import type { FastifyInstance } from 'fastify';
 
-import { registerHandler } from './handler.js';
-import { registerBodySchema, registerResponseSchema } from './schemas.js';
+import {
+  loginHandler,
+  logoutHandler,
+  meHandler,
+  refreshHandler,
+  registerHandler,
+} from './handler.js';
+import {
+  loginBodySchema,
+  loginResponseSchema,
+  meResponseSchema,
+  registerBodySchema,
+  registerResponseSchema,
+} from './schemas.js';
 
 export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
   const router = app.withTypeProvider<TypeBoxTypeProvider>();
@@ -22,5 +34,42 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
       },
     },
     registerHandler,
+  );
+
+  router.post(
+    '/api/v1/auth/login',
+    {
+      config: { rateLimit: 'auth-login', auth: 'public' },
+      schema: {
+        body: loginBodySchema,
+        response: { 200: loginResponseSchema },
+      },
+    },
+    loginHandler,
+  );
+
+  router.post(
+    '/api/v1/auth/refresh',
+    {
+      config: { rateLimit: 'auth-refresh', auth: 'public' },
+    },
+    refreshHandler,
+  );
+
+  router.post(
+    '/api/v1/auth/logout',
+    {
+      config: { rateLimit: 'auth-logout', auth: 'public' },
+    },
+    logoutHandler,
+  );
+
+  router.get(
+    '/api/v1/auth/me',
+    {
+      config: { rateLimit: 'authenticated-read', auth: 'required' },
+      schema: { response: { 200: meResponseSchema } },
+    },
+    meHandler,
   );
 }

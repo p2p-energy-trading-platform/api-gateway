@@ -2,7 +2,7 @@ import 'dotenv/config';
 import { isIP } from 'node:net';
 import envSchema from 'env-schema';
 import { envSchema as schema } from './schema.js';
-import type { AppConfig, NodeEnvironment, TrustProxy } from './types.js';
+import type { AppConfig, CookieSameSite, NodeEnvironment, TrustProxy } from './types.js';
 
 interface RawEnvironment {
   NODE_ENV: NodeEnvironment;
@@ -14,6 +14,10 @@ interface RawEnvironment {
   BODY_LIMIT_BYTES: number;
   REQUEST_TIMEOUT_MS: number;
   CORS_ORIGINS: string;
+  COOKIE_SECURE: boolean;
+  COOKIE_SAME_SITE: CookieSameSite;
+  COOKIE_DOMAIN?: string;
+  REFRESH_COOKIE_MAX_AGE_SECONDS: number;
   REDIS_URL: string;
   REDIS_CONNECT_TIMEOUT_MS: number;
   TRUST_PROXY: string;
@@ -137,11 +141,23 @@ export function parseAllowedAlgorithms(raw: string): string[] {
   return algorithms;
 }
 
+function validateCookieConfig(env: RawEnvironment): void {
+  if (env.COOKIE_SAME_SITE === 'none' && !env.COOKIE_SECURE) {
+    throw new Error('COOKIE_SAME_SITE=none requires COOKIE_SECURE=true.');
+  }
+
+  if (env.NODE_ENV === 'production' && !env.COOKIE_SECURE) {
+    throw new Error('COOKIE_SECURE=false is not allowed in production.');
+  }
+}
+
 export function loadConfig(): AppConfig {
   const env = envSchema<RawEnvironment>({
     schema,
     dotenv: false,
   });
+
+  validateCookieConfig(env);
 
   return Object.freeze({
     nodeEnv: env.NODE_ENV,
@@ -165,6 +181,13 @@ export function loadConfig(): AppConfig {
 
     cors: {
       origins: parseCorsOrigins(env.CORS_ORIGINS, env.NODE_ENV),
+    },
+
+    cookies: {
+      secure: env.COOKIE_SECURE,
+      sameSite: env.COOKIE_SAME_SITE,
+      domain: env.COOKIE_DOMAIN,
+      refreshMaxAgeSeconds: env.REFRESH_COOKIE_MAX_AGE_SECONDS,
     },
 
     redis: {

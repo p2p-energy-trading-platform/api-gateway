@@ -246,6 +246,39 @@ npm run typecheck
 npm run test
 ```
 
+## Authentication
+
+The auth routes are:
+
+| Method | Route | Auth |
+|---|---|---|
+| POST | `/api/v1/auth/register` | Public |
+| POST | `/api/v1/auth/login` | Public |
+| POST | `/api/v1/auth/logout` | Required |
+| GET | `/api/v1/auth/me` | Required |
+
+Login returns only the public user ID and email. The gateway stores the access token
+in the HttpOnly `gridx_access` cookie with `Path=/`, `SameSite=Lax`, and a
+`Max-Age` matching the token lifetime. `COOKIE_SECURE` controls the `Secure`
+attribute and must remain enabled in production. Refresh tokens are ignored and
+are never stored, returned, logged, or set in a cookie.
+
+The gateway stores `sha256(accessToken)` in Redis under
+`auth:session:<userId>`, with the token lifetime as the Redis TTL. This is one
+active session per user: a new login replaces the previous token hash. Every
+authenticated request must pass JWT verification and match this Redis value.
+Logout deletes the Redis entry and clears the access cookie.
+
+## CORS
+
+Credentials are enabled for browser requests, so `CORS_ORIGINS` must contain
+explicit origins and must not use the wildcard `*`. Each browser origin that
+needs to call the gateway must be listed exactly in `CORS_ORIGINS`.
+
+Because cookies are sent automatically by browsers, state-changing requests carrying a
+gateway cookie must include an `Origin` that exactly matches `CORS_ORIGINS`. This small
+CSRF check complements CORS and protects the cookie-authenticated routes.
+
 ### Lint and format fix
 
 ```bash
