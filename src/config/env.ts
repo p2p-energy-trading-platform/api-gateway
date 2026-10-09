@@ -126,13 +126,16 @@ export function parseAllowedAlgorithms(raw: string): string[] {
     .map((algorithm) => algorithm.trim())
     .filter(Boolean);
 
-  if (
-    algorithms.length === 0 ||
-    algorithms.some((algorithm) => !SUPPORTED_JWT_ALGORITHMS.includes(algorithm))
-  ) {
-    throw new Error(
-      `AUTH_ALLOWED_ALGORITHMS must contain only supported algorithms: ${SUPPORTED_JWT_ALGORITHMS.join(', ')}.`,
-    );
+  if (algorithms.length === 0) {
+    throw new Error('AUTH_ALLOWED_ALGORITHMS must contain at least one algorithm.');
+  }
+
+  for (const algorithm of algorithms) {
+    if (!SUPPORTED_JWT_ALGORITHMS.includes(algorithm)) {
+      throw new Error(
+        `AUTH_ALLOWED_ALGORITHMS contains an unsupported algorithm: "${algorithm}" (supported: ${SUPPORTED_JWT_ALGORITHMS.join(', ')}).`,
+      );
+    }
   }
 
   return algorithms;

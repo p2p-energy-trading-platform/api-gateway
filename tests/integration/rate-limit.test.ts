@@ -30,8 +30,10 @@ describe('rate limiting', () => {
     const config: AppConfig = { ...testConfig, ...overrides, rateLimit: { hashSecret } };
     const app = await buildApp({ config, registerInfrastructure: true });
 
-    app.get('/test/public', async () => ({ ok: true }));
-    app.post('/test/login', { config: { rateLimit: 'auth-login' } }, async () => ({ ok: true }));
+    app.get('/test/public', { config: { auth: 'public' } }, async () => ({ ok: true }));
+    app.post('/test/login', { config: { rateLimit: 'auth-login', auth: 'public' } }, async () => ({
+      ok: true,
+    }));
 
     apps.push(app);
 

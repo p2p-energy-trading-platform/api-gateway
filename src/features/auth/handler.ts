@@ -1,9 +1,9 @@
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import { grpcDeadlinesMs } from '../../transport/grpc/deadlines.js';
-import type { RegisterBody } from './schemas.js';
+import type { RegisterBody, RegisterResponse } from './schemas.js';
 import { mapRegisterResponse } from './mapper.js';
 import { mapLoginResponse, mapMeResponse } from './mapper.js';
-import type { LoginBody } from './schemas.js';
+import type { LoginBody, LoginResponse, MeResponse } from './schemas.js';
 import { AppError } from '../../errors/app-error.js';
 import { clearAccessCookie, setAccessCookie } from './cookies.js';
 import { deleteAccessToken, storeAccessToken } from './session-store.js';
@@ -11,7 +11,7 @@ import { deleteAccessToken, storeAccessToken } from './session-store.js';
 export async function registerHandler(
   request: FastifyRequest<{ Body: RegisterBody }>,
   reply: FastifyReply,
-): Promise<FastifyReply> {
+): Promise<RegisterResponse> {
   const result = await request.server.grpcClients.auth.register(
     {
       email: request.body.email,
@@ -20,13 +20,15 @@ export async function registerHandler(
     grpcDeadlinesMs.authRegister,
   );
 
-  return reply.code(201).send(mapRegisterResponse(result));
+  reply.code(201);
+
+  return mapRegisterResponse(result);
 }
 
 export async function loginHandler(
   request: FastifyRequest<{ Body: LoginBody }>,
   reply: FastifyReply,
-): Promise<FastifyReply> {
+): Promise<LoginResponse> {
   const result = await request.server.grpcClients.auth.login(
     request.body,
     grpcDeadlinesMs.authLogin,
@@ -43,7 +45,7 @@ export async function loginHandler(
 
   setAccessCookie(reply, request.server.config, result.accessToken, expiresIn);
 
-  return reply.code(200).send(mapLoginResponse(result));
+  return mapLoginResponse(result);
 }
 
 export async function logoutHandler(
@@ -65,10 +67,7 @@ export async function logoutHandler(
   return reply.code(204).send();
 }
 
-export async function meHandler(
-  request: FastifyRequest,
-  reply: FastifyReply,
-): Promise<FastifyReply> {
+export async function meHandler(request: FastifyRequest): Promise<MeResponse> {
   if (request.principal === null) {
     throw new AppError('UNAUTHENTICATED');
   }
@@ -78,5 +77,5 @@ export async function meHandler(
     grpcDeadlinesMs.authGetUser,
   );
 
-  return reply.code(200).send(mapMeResponse(result));
+  return mapMeResponse(result);
 }

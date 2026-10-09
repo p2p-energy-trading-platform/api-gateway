@@ -118,6 +118,48 @@ export const envSchema = {
       default: 'http://auth-service:50051',
     },
 
+    AUTH_ISSUER: {
+      type: 'string',
+      minLength: 1,
+      default: 'http://auth-service:3000',
+    },
+
+    AUTH_AUDIENCE: {
+      type: 'string',
+      minLength: 1,
+      default: 'gridx-api',
+    },
+
+    AUTH_JWKS_URI: {
+      type: 'string',
+      pattern: '^https?://.+',
+      default: 'http://auth-service:3000/.well-known/jwks.json',
+    },
+
+    AUTH_ALLOWED_ALGORITHMS: {
+      type: 'string',
+      default: 'EdDSA',
+    },
+
+    AUTH_CLOCK_TOLERANCE_SECONDS: {
+      type: 'integer',
+      minimum: 0,
+      maximum: 300,
+      default: 5,
+    },
+
+    AUTH_JWKS_CACHE_TTL_SECONDS: {
+      type: 'integer',
+      minimum: 30,
+      default: 300,
+    },
+
+    AUTH_JWKS_REQUEST_TIMEOUT_MS: {
+      type: 'integer',
+      minimum: 100,
+      default: 2000,
+    },
+
     GRPC_DEFAULT_TIMEOUT_MS: {
       type: 'integer',
       minimum: 100,
@@ -139,44 +181,6 @@ export const envSchema = {
 
     GRPC_TLS_KEY_PATH: {
       type: 'string',
-    },
-
-    AUTH_ISSUER: {
-      type: 'string',
-      default: 'gridx-auth-service',
-    },
-
-    AUTH_AUDIENCE: {
-      type: 'string',
-      default: 'gridx-api-gateway',
-    },
-
-    AUTH_JWKS_URI: {
-      type: 'string',
-      default: 'http://auth-service:8080/.well-known/jwks.json',
-    },
-
-    AUTH_ALLOWED_ALGORITHMS: {
-      type: 'string',
-      default: 'RS256,EdDSA',
-    },
-
-    AUTH_CLOCK_TOLERANCE_SECONDS: {
-      type: 'integer',
-      minimum: 0,
-      default: 5,
-    },
-
-    AUTH_JWKS_CACHE_TTL_SECONDS: {
-      type: 'integer',
-      minimum: 1,
-      default: 300,
-    },
-
-    AUTH_JWKS_REQUEST_TIMEOUT_MS: {
-      type: 'integer',
-      minimum: 100,
-      default: 2000,
     },
   },
 } as const;

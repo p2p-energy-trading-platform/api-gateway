@@ -7,6 +7,9 @@ import type { AppConfig } from './config/types.js';
 import { registerErrorHandler } from './errors/error-handler.js';
 import { registerHealthRoutes } from './health/routes.js';
 import { createLoggerOptions } from './observability/logging.js';
+import authenticationPlugin from './plugins/authentication.js';
+import websocketPlugin from './plugins/websocket.js';
+import { registerWebsocketRoutes } from './features/websocket/routes.js';
 import observabilityPlugin from './plugins/observability.js';
 import rateLimitPlugin from './plugins/rate-limit.js';
 import redisPlugin from './plugins/redis.js';
@@ -16,7 +19,6 @@ import fastifyRequestContext from '@fastify/request-context';
 import grpcPlugin from './plugins/grpc.js';
 import { registerAuthRoutes } from './features/auth/routes.js';
 import cookie from '@fastify/cookie';
-import authentication from './plugins/authentication.js';
 import csrf from './plugins/csrf.js';
 
 const REQUEST_ID_PATTERN = /^[A-Za-z0-9._:-]{1,128}$/;
@@ -63,15 +65,12 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
       tracing: {
         requestId: req.id,
         correlationId:
-          (typeof req.headers['x-correlation-id'] === 'string'
+          typeof req.headers['x-correlation-id'] === 'string' &&
+          REQUEST_ID_PATTERN.test(req.headers['x-correlation-id'])
             ? req.headers['x-correlation-id']
-            : undefined) ?? req.id,
+            : req.id,
         traceparent:
           typeof req.headers['traceparent'] === 'string' ? req.headers['traceparent'] : undefined,
-        authorization:
-          typeof req.headers['authorization'] === 'string'
-            ? req.headers['authorization']
-            : undefined,
       },
     }),
   });
@@ -101,7 +100,6 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
   await registerCors(app, config);
   await app.register(cookie);
   await app.register(csrf, { config });
-  await app.register(authentication, { config });
 
   if (registerInfrastructure) {
     await app.register(redisPlugin, {
@@ -109,6 +107,14 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
     });
 
     await app.register(rateLimitPlugin, {
+      config,
+    });
+
+    await app.register(authenticationPlugin, {
+      config,
+    });
+
+    await app.register(websocketPlugin, {
       config,
     });
 
@@ -120,6 +126,10 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
    */
   await registerHealthRoutes(app);
   await registerAuthRoutes(app);
+
+  if (registerInfrastructure) {
+    await registerWebsocketRoutes(app);
+  }
 
   return app;
 }

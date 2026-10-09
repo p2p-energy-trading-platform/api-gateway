@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { loadConfig, parseCorsOrigins, parseTrustProxy } from './env.js';
+import { loadConfig, parseAllowedAlgorithms, parseCorsOrigins, parseTrustProxy } from './env.js';
 
 const REQUIRED_ENV = {
   NODE_ENV: 'test',
@@ -31,12 +31,6 @@ const ALL_SCHEMA_KEYS = [
   'RATE_LIMIT_HASH_SECRET',
   'METRICS_HOST',
   'METRICS_PORT',
-  'AUTH_SERVICE_GRPC_URL',
-  'GRPC_DEFAULT_TIMEOUT_MS',
-  'GRPC_TLS_ENABLED',
-  'GRPC_TLS_CA_PATH',
-  'GRPC_TLS_CERT_PATH',
-  'GRPC_TLS_KEY_PATH',
   'AUTH_ISSUER',
   'AUTH_AUDIENCE',
   'AUTH_JWKS_URI',
@@ -268,5 +262,34 @@ describe('rate-limit config', () => {
     });
 
     expect(loadConfig().rateLimit.hashSecret).toBe('a-real-production-secret-value');
+  });
+});
+
+describe('auth config', () => {
+  it('defaults to the local auth-service settings and EdDSA', () => {
+    setEnv(REQUIRED_ENV);
+
+    const { auth } = loadConfig();
+
+    expect(auth.issuer).toBe('http://auth-service:3000');
+    expect(auth.audience).toBe('gridx-api');
+    expect(auth.jwksUri).toBe('http://auth-service:3000/.well-known/jwks.json');
+    expect(auth.allowedAlgorithms).toEqual(['EdDSA']);
+  });
+
+  it('throws when AUTH_JWKS_URI is not an http(s) URL', () => {
+    setEnv({ ...REQUIRED_ENV, AUTH_JWKS_URI: 'auth-service/jwks.json' });
+
+    expect(() => loadConfig()).toThrowError(/AUTH_JWKS_URI/);
+  });
+});
+
+describe('parseAllowedAlgorithms', () => {
+  it('parses a comma-separated list', () => {
+    expect(parseAllowedAlgorithms('EdDSA, ES256')).toEqual(['EdDSA', 'ES256']);
+  });
+
+  it.each(['EDDSA', 'HS256', 'none', ''])('rejects "%s"', (raw) => {
+    expect(() => parseAllowedAlgorithms(raw)).toThrowError(/AUTH_ALLOWED_ALGORITHMS/);
   });
 });

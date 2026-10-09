@@ -1,4 +1,6 @@
+import type { TypeBoxTypeProvider } from '@fastify/type-provider-typebox';
 import type { FastifyInstance } from 'fastify';
+
 import { loginHandler, logoutHandler, meHandler, registerHandler } from './handler.js';
 import {
   loginBodySchema,
@@ -9,7 +11,9 @@ import {
 } from './schemas.js';
 
 export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
-  app.post(
+  const router = app.withTypeProvider<TypeBoxTypeProvider>();
+
+  router.post(
     '/api/v1/auth/register',
     {
       config: {
@@ -26,7 +30,7 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
     registerHandler,
   );
 
-  app.post(
+  router.post(
     '/api/v1/auth/login',
     {
       config: { rateLimit: 'auth-login', auth: 'public' },
@@ -38,7 +42,7 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
     loginHandler,
   );
 
-  app.post(
+  router.post(
     '/api/v1/auth/logout',
     {
       config: { rateLimit: 'authenticated-write', auth: 'required' },
@@ -46,7 +50,7 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
     logoutHandler,
   );
 
-  app.get(
+  router.get(
     '/api/v1/auth/me',
     {
       config: { rateLimit: 'authenticated-read', auth: 'required' },

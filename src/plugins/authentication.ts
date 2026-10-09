@@ -1,13 +1,9 @@
-import fastifyJwt from '@fastify/jwt';
-import type { FastifyJWTOptions, JwtHeader } from '@fastify/jwt';
 import fp from 'fastify-plugin';
 import type { FastifyPluginAsync, FastifyRequest } from 'fastify';
-import { createPublicKey } from 'node:crypto';
+import { createRemoteJWKSet, errors, jwtVerify, type JWTPayload } from 'jose';
 
 import type { AppConfig } from '../config/types.js';
 import { AppError } from '../errors/app-error.js';
-import { ACCESS_COOKIE_NAME } from '../features/auth/cookies.js';
-import { getAccessTokenHash, hashAccessToken } from '../features/auth/session-store.js';
 import { DEFAULT_ROUTE_AUTH_POLICY, type RouteAuthPolicy } from '../policies/route-auth.js';
 import type { AuthenticatedPrincipal } from '../types/authentication.js';
 
@@ -15,216 +11,151 @@ declare module 'fastify' {
   interface FastifyContextConfig {
     auth?: RouteAuthPolicy;
   }
+
+  interface FastifyRequest {
+    // Set only after the access token has been verified; null for anonymous requests.
+    principal: AuthenticatedPrincipal | null;
+  }
 }
 
 export interface AuthenticationPluginOptions {
   config: AppConfig;
 }
 
-const BEARER_TOKEN = /^Bearer\s+(\S+)$/i;
+// Minimum time between JWKS refreshes triggered by an unknown "kid".
 const JWKS_COOLDOWN_MS = 30_000;
 
-interface JsonWebKey {
-  kid?: string;
-  kty: string;
-  alg?: string;
-  use?: string;
-  n?: string;
-  e?: string;
-  crv?: string;
-  x?: string;
-  y?: string;
-}
+const BEARER_TOKEN = /^Bearer ([A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+)$/i;
 
-interface JsonWebKeySet {
-  keys: JsonWebKey[];
-}
-
-interface KeyCache {
-  expiresAt: number;
-  fetchedAt: number;
-  keys: Map<string, string>;
-}
+// Safe reason categories for logs and metrics. Never log the token itself.
+type AuthFailure = 'missing' | 'malformed' | 'expired' | 'invalid' | 'unavailable';
 
 class AuthenticationFailure extends Error {
-  constructor(readonly reason: 'missing' | 'malformed' | 'invalid' | 'revoked' | 'unavailable') {
+  constructor(readonly reason: AuthFailure) {
     super(reason);
   }
 }
 
-function readToken(request: FastifyRequest): string | undefined {
-  const authorization = request.headers.authorization;
+function readBearerToken(request: FastifyRequest): string | undefined {
+  const header = request.headers.authorization;
 
-  if (authorization !== undefined) {
-    const match = BEARER_TOKEN.exec(authorization);
-
-    if (match?.[1] === undefined) {
-      throw new AuthenticationFailure('malformed');
-    }
-
-    return match[1];
+  if (header === undefined) {
+    return undefined;
   }
 
-  return request.cookies?.[ACCESS_COOKIE_NAME];
+  const token = BEARER_TOKEN.exec(header)?.[1];
+
+  if (token === undefined) {
+    throw new AuthenticationFailure('malformed');
+  }
+
+  return token;
 }
 
-function toPrincipal(
-  payload: Record<string, unknown>,
-  clockToleranceSeconds: number,
-): AuthenticatedPrincipal {
-  if (payload.typ !== 'access' || typeof payload.sub !== 'string' || payload.sub.length === 0) {
+function readScopes(payload: JWTPayload): string[] {
+  const scope = payload['scope'];
+
+  if (Array.isArray(scope)) {
+    return scope.filter((value): value is string => typeof value === 'string');
+  }
+
+  return typeof scope === 'string' ? scope.split(' ').filter(Boolean) : [];
+}
+
+/*
+ * Checks that jose does not do for us: the access-token profile of auth-service.
+ * jose already checked signature, algorithm, issuer, audience, and expiry.
+ */
+function toPrincipal(payload: JWTPayload, clockToleranceSeconds: number): AuthenticatedPrincipal {
+  const nowSeconds = Math.floor(Date.now() / 1000);
+
+  if (payload['typ'] !== 'access') {
     throw new AuthenticationFailure('invalid');
   }
 
-  const nowSeconds = Math.floor(Date.now() / 1000);
+  if (typeof payload.sub !== 'string' || payload.sub.length === 0) {
+    throw new AuthenticationFailure('invalid');
+  }
 
   if (typeof payload.iat !== 'number' || payload.iat > nowSeconds + clockToleranceSeconds) {
     throw new AuthenticationFailure('invalid');
   }
 
-  const scope = payload.scope;
-  const scopes = Array.isArray(scope)
-    ? scope.filter((value): value is string => typeof value === 'string')
-    : typeof scope === 'string'
-      ? scope.split(' ').filter(Boolean)
-      : [];
+  const role = payload['role'];
 
   return {
     userId: payload.sub,
-    role: typeof payload.role === 'string' ? payload.role : undefined,
-    scopes,
+    role: typeof role === 'string' ? role : undefined,
+    scopes: readScopes(payload),
   };
 }
 
-function readJwkKey(jwk: JsonWebKey): string {
-  try {
-    const key = createPublicKey({ key: jwk, format: 'jwk' }).export({
-      type: 'spki',
-      format: 'pem',
-    });
-
-    if (typeof key !== 'string') {
-      throw new Error('JWKS public key was not exported as PEM');
-    }
-
-    return key;
-  } catch {
-    throw new AuthenticationFailure('unavailable');
+function toFailure(error: unknown): AuthenticationFailure {
+  if (error instanceof AuthenticationFailure) {
+    return error;
   }
+
+  if (error instanceof errors.JWTExpired) {
+    return new AuthenticationFailure('expired');
+  }
+
+  // Could not load keys: timeout, bad key set, or non-200 / non-JSON response (jose throws the
+  // base JOSEError for those). We cannot tell whether the token is valid.
+  if (
+    error instanceof errors.JWKSTimeout ||
+    error instanceof errors.JWKSInvalid ||
+    (error instanceof errors.JOSEError && error.constructor === errors.JOSEError)
+  ) {
+    return new AuthenticationFailure('unavailable');
+  }
+
+  // Every token problem (bad signature, wrong alg/iss/aud, unknown kid, ...) is a JOSEError subclass.
+  if (error instanceof errors.JOSEError) {
+    return new AuthenticationFailure('invalid');
+  }
+
+  // Anything else, e.g. the network request to the JWKS endpoint failed.
+  return new AuthenticationFailure('unavailable');
 }
 
 const authenticationPlugin: FastifyPluginAsync<AuthenticationPluginOptions> = async (
   app,
   options,
 ) => {
-  let cache: KeyCache | undefined;
-  let refreshStartedAt = 0;
+  const { auth } = options.config;
 
-  async function loadKeys(): Promise<Map<string, string>> {
-    const now = Date.now();
-
-    if (cache !== undefined && cache.expiresAt > now) {
-      return cache.keys;
-    }
-
-    if (now - refreshStartedAt < JWKS_COOLDOWN_MS && cache !== undefined) {
-      return cache.keys;
-    }
-
-    refreshStartedAt = now;
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), options.config.auth.jwksRequestTimeoutMs);
-
-    try {
-      const response = await fetch(options.config.auth.jwksUri, { signal: controller.signal });
-
-      if (!response.ok) {
-        throw new Error(`JWKS request failed with status ${response.status}`);
-      }
-
-      const body = (await response.json()) as JsonWebKeySet;
-      const keys = new Map<string, string>();
-
-      for (const key of body.keys) {
-        if (key.kid !== undefined) {
-          keys.set(key.kid, readJwkKey(key));
-        }
-      }
-
-      if (keys.size === 0) {
-        throw new Error('JWKS did not contain usable keys');
-      }
-
-      cache = {
-        keys,
-        fetchedAt: now,
-        expiresAt: now + options.config.auth.jwksCacheTtlSeconds * 1000,
-      };
-
-      return keys;
-    } catch {
-      throw new AuthenticationFailure('unavailable');
-    } finally {
-      clearTimeout(timeout);
-    }
-  }
-
-  await app.register(fastifyJwt, {
-    decode: { complete: true },
-    secret: ((
-      _request: FastifyRequest,
-      tokenOrHeader: JwtHeader | { header: JwtHeader; payload: object },
-      callback: (error: Error | null, secret: string | Buffer | undefined) => void,
-    ) => {
-      void (async () => {
-        const header = 'header' in tokenOrHeader ? tokenOrHeader.header : tokenOrHeader;
-        const kid = header.kid;
-
-        if (typeof kid !== 'string') {
-          throw new AuthenticationFailure('invalid');
-        }
-
-        const key = (await loadKeys()).get(kid);
-
-        if (key === undefined) {
-          cache = undefined;
-          const refreshed = await loadKeys();
-          const refreshedKey = refreshed.get(kid);
-
-          if (refreshedKey === undefined) {
-            throw new AuthenticationFailure('invalid');
-          }
-
-          return refreshedKey;
-        }
-
-        return key;
-      })().then(
-        (key) => callback(null, key),
-        (error: unknown) =>
-          callback(error instanceof Error ? error : new Error(String(error)), undefined),
-      );
-    }) as FastifyJWTOptions['secret'],
-    verify: {
-      algorithms: options.config.auth.allowedAlgorithms as Array<'RS256' | 'ES256' | 'EdDSA'>,
-      allowedIss: options.config.auth.issuer,
-      allowedAud: options.config.auth.audience,
-      clockTolerance: options.config.auth.clockToleranceSeconds,
-      requiredClaims: ['sub', 'exp', 'iat'],
-    },
+  // jose caches keys, refreshes once on an unknown kid (respecting the cooldown), and shares
+  // one in-flight fetch between concurrent requests.
+  const jwks = createRemoteJWKSet(new URL(auth.jwksUri), {
+    timeoutDuration: auth.jwksRequestTimeoutMs,
+    cooldownDuration: JWKS_COOLDOWN_MS,
+    cacheMaxAge: auth.jwksCacheTtlSeconds * 1000,
   });
 
   app.decorateRequest('principal', null);
 
+  async function verify(token: string): Promise<AuthenticatedPrincipal> {
+    const { payload } = await jwtVerify(token, jwks, {
+      issuer: auth.issuer,
+      audience: auth.audience,
+      algorithms: auth.allowedAlgorithms,
+      clockTolerance: auth.clockToleranceSeconds,
+      requiredClaims: ['sub', 'exp', 'iat'],
+    });
+
+    return toPrincipal(payload, auth.clockToleranceSeconds);
+  }
+
   app.addHook('onRequest', async (request) => {
     const policy = request.routeOptions.config.auth ?? DEFAULT_ROUTE_AUTH_POLICY;
 
+    // Unknown routes stay 404 instead of turning into 401.
     if (policy === 'public' || request.is404) {
       return;
     }
 
     try {
-      const token = readToken(request);
+      const token = readBearerToken(request);
 
       if (token === undefined) {
         if (policy === 'optional') {
@@ -234,37 +165,27 @@ const authenticationPlugin: FastifyPluginAsync<AuthenticationPluginOptions> = as
         throw new AuthenticationFailure('missing');
       }
 
-      request.headers.authorization = `Bearer ${token}`;
-      const payload = await request.jwtVerify<Record<string, unknown>>();
-      const principal = toPrincipal(payload, options.config.auth.clockToleranceSeconds);
-
-      let storedHash: string | null;
-
-      try {
-        storedHash = await getAccessTokenHash(app.redis, principal.userId);
-      } catch (error) {
-        request.log.error({ err: error }, 'Could not read access token session');
-        throw new AuthenticationFailure('unavailable');
-      }
-
-      if (storedHash === null || storedHash !== hashAccessToken(token)) {
-        throw new AuthenticationFailure('revoked');
-      }
-
-      request.principal = principal;
+      request.principal = await verify(token);
     } catch (error) {
-      if (error instanceof AuthenticationFailure && error.reason === 'unavailable') {
-        request.log.error({ err: error }, 'Could not load authentication dependencies');
+      const failure = toFailure(error);
+
+      app.metrics.authOutcomes.inc({ result: failure.reason });
+      request.log.info({ reason: failure.reason }, 'Authentication failed');
+
+      if (failure.reason === 'unavailable') {
+        request.log.error({ err: error }, 'Could not load auth-service signing keys');
+
         throw new AppError('UPSTREAM_UNAVAILABLE');
       }
 
-      request.log.info(
-        { reason: error instanceof AuthenticationFailure ? error.reason : 'invalid' },
-        'Authentication failed',
-      );
       throw new AppError('UNAUTHENTICATED', 'Invalid or missing access token.');
     }
 
+    app.metrics.authOutcomes.inc({ result: 'success' });
+    request.log = request.log.child({ userId: request.principal.userId });
+
+    // gRPC calls forward identity from the request context: only the verified user ID,
+    // never the original token or any identity header sent by the client.
     const tracing = request.requestContext?.get('tracing');
 
     if (tracing !== undefined) {
@@ -275,5 +196,5 @@ const authenticationPlugin: FastifyPluginAsync<AuthenticationPluginOptions> = as
 
 export default fp(authenticationPlugin, {
   name: 'authentication',
-  dependencies: ['observability', '@fastify/cookie'],
+  dependencies: ['observability'],
 });

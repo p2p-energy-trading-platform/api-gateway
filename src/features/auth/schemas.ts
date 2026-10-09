@@ -1,82 +1,42 @@
+import { Type, type Static } from 'typebox';
+
 import { emailSchema, strictObject } from '../../common/validation.js';
 
-export const registerBodySchema = strictObject(
-  {
-    email: emailSchema,
-    password: {
-      type: 'string',
-      minLength: 8,
-      maxLength: 128,
-    },
-  },
-  ['email', 'password'],
-);
+export const registerBodySchema = strictObject({
+  email: emailSchema,
+  password: Type.String({ minLength: 8, maxLength: 128 }),
+});
 
-export const registerResponseSchema = strictObject(
-  {
-    userId: { type: 'string' },
-    email: { type: 'string' },
-    status: { type: 'string' },
-    createdAt: { type: 'string' },
-  },
-  ['userId', 'email', 'status', 'createdAt'],
-);
+export const registerResponseSchema = strictObject({
+  userId: Type.String(),
+  email: Type.String(),
+  status: Type.String(),
+  createdAt: Type.String(),
+});
 
-export interface RegisterBody {
-  email: string;
-  password: string;
-}
+export type RegisterBody = Static<typeof registerBodySchema>;
 
-export interface RegisterResponse {
-  userId: string;
-  email: string;
-  status: string;
-  createdAt: string;
-}
+export type RegisterResponse = Static<typeof registerResponseSchema>;
 
-export const loginBodySchema = strictObject(
-  {
-    email: emailSchema,
-    password: {
-      type: 'string',
-      minLength: 1,
-      maxLength: 128,
-    },
-  },
-  ['email', 'password'],
-);
+export const loginBodySchema = strictObject({
+  email: emailSchema,
+  password: Type.String({ minLength: 1, maxLength: 128 }),
+});
 
-export const loginResponseSchema = strictObject(
-  {
-    userId: { type: 'string' },
-    email: { type: 'string' },
-  },
-  ['userId', 'email'],
-);
+export const loginResponseSchema = strictObject({
+  userId: Type.String(),
+  email: Type.String(),
+});
 
-export const meResponseSchema = strictObject(
-  {
-    userId: { type: 'string' },
-    email: { type: 'string' },
-    status: { type: 'string' },
-    role: { type: 'string' },
-  },
-  ['userId', 'email', 'status', 'role'],
-);
+export const meResponseSchema = strictObject({
+  userId: Type.String(),
+  email: Type.String(),
+  status: Type.String(),
+  role: Type.String(),
+});
 
-export interface LoginBody {
-  email: string;
-  password: string;
-}
+export type LoginBody = Static<typeof loginBodySchema>;
 
-export interface LoginResponse {
-  userId: string;
-  email: string;
-}
+export type LoginResponse = Static<typeof loginResponseSchema>;
 
-export interface MeResponse {
-  userId: string;
-  email: string;
-  status: string;
-  role: string;
-}
+export type MeResponse = Static<typeof meResponseSchema>;
