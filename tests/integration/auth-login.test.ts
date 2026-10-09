@@ -5,31 +5,35 @@ import type { FastifyInstance } from 'fastify';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { buildApp } from '../../src/app.js';
-import { hashAccessToken, sessionKey } from '../../src/features/auth/session-store.js';
 import { startFakeAuthService, type FakeAuthService } from '../helpers/fake-auth-service.js';
 import { testConfig } from '../helpers/test-config.js';
 
 const URL = '/api/v1/auth/login';
 const VALID_BODY = { email: 'user@example.com', password: 'password' };
 const ACCESS_TOKEN = 'access-token-for-test';
+const REFRESH_TOKEN = 'refresh-token-for-test';
 
 describe('POST /api/v1/auth/login', () => {
   let app: FastifyInstance | undefined;
   let fake: FakeAuthService | undefined;
 
-  async function setup(login: () => unknown = () => ({
-    userId: 'user-1',
-    email: VALID_BODY.email,
-    accessToken: ACCESS_TOKEN,
-    refreshToken: 'refresh-token-must-not-be-used',
-    expiresIn: 60n,
-  })) {
+  async function setup(
+    login: () => unknown = () => ({
+      userId: 'user-1',
+      email: VALID_BODY.email,
+      accessToken: ACCESS_TOKEN,
+      refreshToken: REFRESH_TOKEN,
+      expiresIn: 60n,
+    }),
+    cookies = testConfig.cookies,
+  ) {
     fake = await startFakeAuthService({
       login: async () => login() as never,
     });
     app = await buildApp({
       config: {
         ...testConfig,
+        cookies,
         grpc: { ...testConfig.grpc, authServiceUrl: fake.url },
         rateLimit: { hashSecret: randomUUID() },
       },
@@ -45,45 +49,49 @@ describe('POST /api/v1/auth/login', () => {
     fake = undefined;
   });
 
-  it('stores a hash, sets the access cookie, and returns no token', async () => {
+  it('sets the access and refresh cookies and returns no token', async () => {
     const instance = await setup();
 
-    const response = await instance.inject({
-      method: 'POST',
-      url: URL,
-      payload: VALID_BODY,
-    });
+    const response = await instance.inject({ method: 'POST', url: URL, payload: VALID_BODY });
 
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual({ userId: 'user-1', email: VALID_BODY.email });
     expect(response.body).not.toContain(ACCESS_TOKEN);
-    expect(response.body).not.toContain('refresh-token');
-    const setCookie = response.headers['set-cookie'];
-    expect(setCookie).toContain('gridx_access=');
-    expect(setCookie).toContain('HttpOnly');
-    expect(setCookie).toContain('Path=/');
-    expect(setCookie).toContain('SameSite=Lax');
-    expect(setCookie).toContain('Max-Age=60');
-    expect(setCookie).not.toContain('gridx_refresh');
-    expect(await instance.redis.get(sessionKey('user-1'))).toBe(hashAccessToken(ACCESS_TOKEN));
-    expect(await instance.redis.ttl(sessionKey('user-1'))).toBeGreaterThan(0);
+    expect(response.body).not.toContain(REFRESH_TOKEN);
+
+    const access = response.cookies.find((cookie) => cookie.name === 'gridx_access');
+    const refresh = response.cookies.find((cookie) => cookie.name === 'gridx_refresh');
+
+    expect(access).toMatchObject({
+      value: ACCESS_TOKEN,
+      path: '/',
+      maxAge: 60,
+      httpOnly: true,
+      secure: true,
+      sameSite: 'Lax',
+    });
+    expect(refresh).toMatchObject({
+      value: REFRESH_TOKEN,
+      path: '/api/v1/auth',
+      maxAge: testConfig.cookies.refreshMaxAgeSeconds,
+      httpOnly: true,
+      secure: true,
+      sameSite: 'Lax',
+    });
   });
 
-  it('replaces the previous session for the same user', async () => {
-    let accessToken = 'first-access-token';
-    const instance = await setup(() => ({
-      userId: 'user-2',
-      email: VALID_BODY.email,
-      accessToken,
-      refreshToken: 'ignored',
-      expiresIn: 60n,
-    }));
+  it('uses the configured SameSite and domain', async () => {
+    const instance = await setup(undefined, {
+      ...testConfig.cookies,
+      sameSite: 'strict',
+      domain: 'example.com',
+    });
 
-    await instance.inject({ method: 'POST', url: URL, payload: VALID_BODY });
-    accessToken = 'second-access-token';
-    await instance.inject({ method: 'POST', url: URL, payload: VALID_BODY });
+    const response = await instance.inject({ method: 'POST', url: URL, payload: VALID_BODY });
 
-    expect(await instance.redis.get(sessionKey('user-2'))).toBe(hashAccessToken(accessToken));
+    for (const cookie of response.cookies) {
+      expect(cookie).toMatchObject({ sameSite: 'Strict', domain: 'example.com' });
+    }
   });
 
   it('passes through invalid credentials without setting a cookie', async () => {
@@ -91,11 +99,7 @@ describe('POST /api/v1/auth/login', () => {
       throw new ConnectError('Invalid credentials', Code.Unauthenticated);
     });
 
-    const response = await instance.inject({
-      method: 'POST',
-      url: URL,
-      payload: VALID_BODY,
-    });
+    const response = await instance.inject({ method: 'POST', url: URL, payload: VALID_BODY });
 
     expect(response.statusCode).toBe(401);
     expect(response.headers['set-cookie']).toBeUndefined();
@@ -124,19 +128,5 @@ describe('POST /api/v1/auth/login', () => {
     const limited = responses.find((response) => response.statusCode === 429);
 
     expect(limited?.headers['retry-after']).toBeDefined();
-  });
-
-  it('returns 503 and does not set a cookie when Redis is unavailable', async () => {
-    const instance = await setup();
-    await instance.redis.disconnect();
-
-    const response = await instance.inject({
-      method: 'POST',
-      url: URL,
-      payload: VALID_BODY,
-    });
-
-    expect(response.statusCode).toBe(503);
-    expect(response.headers['set-cookie']).toBeUndefined();
   });
 });
