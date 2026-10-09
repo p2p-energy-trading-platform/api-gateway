@@ -2,7 +2,7 @@ import 'dotenv/config';
 import { isIP } from 'node:net';
 import envSchema from 'env-schema';
 import { envSchema as schema } from './schema.js';
-import type { AppConfig, NodeEnvironment, TrustProxy } from './types.js';
+import type { AppConfig, CookieSameSite, NodeEnvironment, TrustProxy } from './types.js';
 
 interface RawEnvironment {
   NODE_ENV: NodeEnvironment;
@@ -14,6 +14,10 @@ interface RawEnvironment {
   BODY_LIMIT_BYTES: number;
   REQUEST_TIMEOUT_MS: number;
   CORS_ORIGINS: string;
+  COOKIE_SECURE: boolean;
+  COOKIE_SAME_SITE: CookieSameSite;
+  COOKIE_DOMAIN?: string;
+  REFRESH_COOKIE_MAX_AGE_SECONDS: number;
   REDIS_URL: string;
   REDIS_CONNECT_TIMEOUT_MS: number;
   TRUST_PROXY: string;
@@ -26,7 +30,16 @@ interface RawEnvironment {
   GRPC_TLS_CA_PATH?: string;
   GRPC_TLS_CERT_PATH?: string;
   GRPC_TLS_KEY_PATH?: string;
+  AUTH_ISSUER: string;
+  AUTH_AUDIENCE: string;
+  AUTH_JWKS_URI: string;
+  AUTH_ALLOWED_ALGORITHMS: string;
+  AUTH_CLOCK_TOLERANCE_SECONDS: number;
+  AUTH_JWKS_CACHE_TTL_SECONDS: number;
+  AUTH_JWKS_REQUEST_TIMEOUT_MS: number;
 }
+
+const SUPPORTED_JWT_ALGORITHMS = ['EdDSA', 'ES256', 'RS256'];
 
 export function parseCorsOrigins(raw: string, nodeEnv: NodeEnvironment): string[] {
   const origins = raw
@@ -107,11 +120,41 @@ export function parseTrustProxy(raw: string): TrustProxy {
   return proxies;
 }
 
+export function parseAllowedAlgorithms(raw: string): string[] {
+  const algorithms = raw
+    .split(',')
+    .map((algorithm) => algorithm.trim())
+    .filter(Boolean);
+
+  if (
+    algorithms.length === 0 ||
+    algorithms.some((algorithm) => !SUPPORTED_JWT_ALGORITHMS.includes(algorithm))
+  ) {
+    throw new Error(
+      `AUTH_ALLOWED_ALGORITHMS must contain only supported algorithms: ${SUPPORTED_JWT_ALGORITHMS.join(', ')}.`,
+    );
+  }
+
+  return algorithms;
+}
+
+function validateCookieConfig(env: RawEnvironment): void {
+  if (env.COOKIE_SAME_SITE === 'none' && !env.COOKIE_SECURE) {
+    throw new Error('COOKIE_SAME_SITE=none requires COOKIE_SECURE=true.');
+  }
+
+  if (env.NODE_ENV === 'production' && !env.COOKIE_SECURE) {
+    throw new Error('COOKIE_SECURE=false is not allowed in production.');
+  }
+}
+
 export function loadConfig(): AppConfig {
   const env = envSchema<RawEnvironment>({
     schema,
     dotenv: false,
   });
+
+  validateCookieConfig(env);
 
   return Object.freeze({
     nodeEnv: env.NODE_ENV,
@@ -135,6 +178,13 @@ export function loadConfig(): AppConfig {
 
     cors: {
       origins: parseCorsOrigins(env.CORS_ORIGINS, env.NODE_ENV),
+    },
+
+    cookies: {
+      secure: env.COOKIE_SECURE,
+      sameSite: env.COOKIE_SAME_SITE,
+      domain: env.COOKIE_DOMAIN,
+      refreshMaxAgeSeconds: env.REFRESH_COOKIE_MAX_AGE_SECONDS,
     },
 
     redis: {
@@ -163,13 +213,13 @@ export function loadConfig(): AppConfig {
     },
 
     auth: {
-      issuer: '',
-      audience: '',
-      jwksUri: '',
-      allowedAlgorithms: ['RS256', 'EDDSA'],
-      clockToleranceSeconds: 5,
-      jwksCacheTtlSeconds: 300,
-      jwksRequestTimeoutMs: 2000,
+      issuer: env.AUTH_ISSUER,
+      audience: env.AUTH_AUDIENCE,
+      jwksUri: env.AUTH_JWKS_URI,
+      allowedAlgorithms: parseAllowedAlgorithms(env.AUTH_ALLOWED_ALGORITHMS),
+      clockToleranceSeconds: env.AUTH_CLOCK_TOLERANCE_SECONDS,
+      jwksCacheTtlSeconds: env.AUTH_JWKS_CACHE_TTL_SECONDS,
+      jwksRequestTimeoutMs: env.AUTH_JWKS_REQUEST_TIMEOUT_MS,
     },
   });
 }
