@@ -6,6 +6,7 @@ import type { RedisClient } from '../transport/redis/client.js';
 
 import type { Metrics } from '../observability/metrics.js';
 import type { TraceContext } from '../observability/tracing.js';
+import type { AuthenticatedPrincipal } from './authentication.js';
 
 declare module '@fastify/request-context' {
   interface RequestContextData {
@@ -23,5 +24,6 @@ declare module 'fastify' {
 
   interface FastifyRequest {
     traceContext: TraceContext;
+    principal: AuthenticatedPrincipal | null;
   }
 }
