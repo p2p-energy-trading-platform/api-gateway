@@ -1,7 +1,13 @@
 import type { TypeBoxTypeProvider } from '@fastify/type-provider-typebox';
 import type { FastifyInstance } from 'fastify';
 
-import { loginHandler, logoutHandler, meHandler, registerHandler } from './handler.js';
+import {
+  loginHandler,
+  logoutHandler,
+  meHandler,
+  refreshHandler,
+  registerHandler,
+} from './handler.js';
 import {
   loginBodySchema,
   loginResponseSchema,
@@ -43,9 +49,17 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
   );
 
   router.post(
+    '/api/v1/auth/refresh',
+    {
+      config: { rateLimit: 'auth-refresh', auth: 'public' },
+    },
+    refreshHandler,
+  );
+
+  router.post(
     '/api/v1/auth/logout',
     {
-      config: { rateLimit: 'authenticated-write', auth: 'required' },
+      config: { rateLimit: 'auth-logout', auth: 'public' },
     },
     logoutHandler,
   );
