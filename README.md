@@ -246,6 +246,28 @@ npm run typecheck
 npm run test
 ```
 
+## Authentication
+
+The auth routes are:
+
+| Method | Route | Auth |
+|---|---|---|
+| POST | `/api/v1/auth/register` | Public |
+| POST | `/api/v1/auth/login` | Public |
+| POST | `/api/v1/auth/refresh` | Public |
+| POST | `/api/v1/auth/logout` | Public |
+| GET | `/api/v1/auth/me` | Required |
+
+Login and refresh tokens are never returned in JSON. The gateway stores them in the
+HttpOnly `gridx_access` and `gridx_refresh` cookies. Cookie security is controlled by
+`COOKIE_SECURE`, `COOKIE_SAME_SITE`, `COOKIE_DOMAIN`, and
+`REFRESH_COOKIE_MAX_AGE_SECONDS`; secure cookies are mandatory in production and
+`SameSite=none` requires secure cookies.
+
+Because cookies are sent automatically by browsers, state-changing requests carrying a
+gateway cookie must include an `Origin` that exactly matches `CORS_ORIGINS`. This small
+CSRF check complements CORS and protects the cookie-authenticated routes.
+
 ### Lint and format fix
 
 ```bash
