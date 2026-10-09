@@ -15,6 +15,9 @@ import { registerCors } from './plugins/cors.js';
 import fastifyRequestContext from '@fastify/request-context';
 import grpcPlugin from './plugins/grpc.js';
 import { registerAuthRoutes } from './features/auth/routes.js';
+import cookie from '@fastify/cookie';
+import authentication from './plugins/authentication.js';
+import csrf from './plugins/csrf.js';
 
 const REQUEST_ID_PATTERN = /^[A-Za-z0-9._:-]{1,128}$/;
 
@@ -96,6 +99,9 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
    */
   await registerSecurity(app, config);
   await registerCors(app, config);
+  await app.register(cookie);
+  await app.register(csrf, { config });
+  await app.register(authentication, { config });
 
   if (registerInfrastructure) {
     await app.register(redisPlugin, {
