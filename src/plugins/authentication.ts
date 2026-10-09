@@ -6,6 +6,8 @@ import { createPublicKey } from 'node:crypto';
 
 import type { AppConfig } from '../config/types.js';
 import { AppError } from '../errors/app-error.js';
+import { ACCESS_COOKIE_NAME } from '../features/auth/cookies.js';
+import { getAccessTokenHash, hashAccessToken } from '../features/auth/session-store.js';
 import { DEFAULT_ROUTE_AUTH_POLICY, type RouteAuthPolicy } from '../policies/route-auth.js';
 import type { AuthenticatedPrincipal } from '../types/authentication.js';
 
@@ -20,7 +22,6 @@ export interface AuthenticationPluginOptions {
 }
 
 const BEARER_TOKEN = /^Bearer\s+(\S+)$/i;
-const ACCESS_COOKIE = 'gridx_access';
 const JWKS_COOLDOWN_MS = 30_000;
 
 interface JsonWebKey {
@@ -42,11 +43,11 @@ interface JsonWebKeySet {
 interface KeyCache {
   expiresAt: number;
   fetchedAt: number;
-  keys: Map<string, Buffer>;
+  keys: Map<string, string>;
 }
 
 class AuthenticationFailure extends Error {
-  constructor(readonly reason: 'missing' | 'malformed' | 'invalid' | 'unavailable') {
+  constructor(readonly reason: 'missing' | 'malformed' | 'invalid' | 'revoked' | 'unavailable') {
     super(reason);
   }
 }
@@ -64,7 +65,7 @@ function readToken(request: FastifyRequest): string | undefined {
     return match[1];
   }
 
-  return request.cookies?.[ACCESS_COOKIE];
+  return request.cookies?.[ACCESS_COOKIE_NAME];
 }
 
 function toPrincipal(
@@ -95,9 +96,18 @@ function toPrincipal(
   };
 }
 
-function readJwkKey(jwk: JsonWebKey): Buffer {
+function readJwkKey(jwk: JsonWebKey): string {
   try {
-    return createPublicKey({ key: jwk, format: 'jwk' }).export({ type: 'spki', format: 'der' });
+    const key = createPublicKey({ key: jwk, format: 'jwk' }).export({
+      type: 'spki',
+      format: 'pem',
+    });
+
+    if (typeof key !== 'string') {
+      throw new Error('JWKS public key was not exported as PEM');
+    }
+
+    return key;
   } catch {
     throw new AuthenticationFailure('unavailable');
   }
@@ -110,7 +120,7 @@ const authenticationPlugin: FastifyPluginAsync<AuthenticationPluginOptions> = as
   let cache: KeyCache | undefined;
   let refreshStartedAt = 0;
 
-  async function loadKeys(): Promise<Map<string, Buffer>> {
+  async function loadKeys(): Promise<Map<string, string>> {
     const now = Date.now();
 
     if (cache !== undefined && cache.expiresAt > now) {
@@ -133,7 +143,7 @@ const authenticationPlugin: FastifyPluginAsync<AuthenticationPluginOptions> = as
       }
 
       const body = (await response.json()) as JsonWebKeySet;
-      const keys = new Map<string, Buffer>();
+      const keys = new Map<string, string>();
 
       for (const key of body.keys) {
         if (key.kid !== undefined) {
@@ -160,13 +170,15 @@ const authenticationPlugin: FastifyPluginAsync<AuthenticationPluginOptions> = as
   }
 
   await app.register(fastifyJwt, {
+    decode: { complete: true },
     secret: ((
       _request: FastifyRequest,
-      token: { header: JwtHeader; payload: object },
+      tokenOrHeader: JwtHeader | { header: JwtHeader; payload: object },
       callback: (error: Error | null, secret: string | Buffer | undefined) => void,
     ) => {
       void (async () => {
-        const kid = token.header.kid;
+        const header = 'header' in tokenOrHeader ? tokenOrHeader.header : tokenOrHeader;
+        const kid = header.kid;
 
         if (typeof kid !== 'string') {
           throw new AuthenticationFailure('invalid');
@@ -224,10 +236,25 @@ const authenticationPlugin: FastifyPluginAsync<AuthenticationPluginOptions> = as
 
       request.headers.authorization = `Bearer ${token}`;
       const payload = await request.jwtVerify<Record<string, unknown>>();
-      request.principal = toPrincipal(payload, options.config.auth.clockToleranceSeconds);
+      const principal = toPrincipal(payload, options.config.auth.clockToleranceSeconds);
+
+      let storedHash: string | null;
+
+      try {
+        storedHash = await getAccessTokenHash(app.redis, principal.userId);
+      } catch (error) {
+        request.log.error({ err: error }, 'Could not read access token session');
+        throw new AuthenticationFailure('unavailable');
+      }
+
+      if (storedHash === null || storedHash !== hashAccessToken(token)) {
+        throw new AuthenticationFailure('revoked');
+      }
+
+      request.principal = principal;
     } catch (error) {
       if (error instanceof AuthenticationFailure && error.reason === 'unavailable') {
-        request.log.error({ err: error }, 'Could not load auth-service signing keys');
+        request.log.error({ err: error }, 'Could not load authentication dependencies');
         throw new AppError('UPSTREAM_UNAVAILABLE');
       }
 

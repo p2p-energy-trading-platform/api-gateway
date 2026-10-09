@@ -254,15 +254,20 @@ The auth routes are:
 |---|---|---|
 | POST | `/api/v1/auth/register` | Public |
 | POST | `/api/v1/auth/login` | Public |
-| POST | `/api/v1/auth/refresh` | Public |
-| POST | `/api/v1/auth/logout` | Public |
+| POST | `/api/v1/auth/logout` | Required |
 | GET | `/api/v1/auth/me` | Required |
 
-Login and refresh tokens are never returned in JSON. The gateway stores them in the
-HttpOnly `gridx_access` and `gridx_refresh` cookies. Cookie security is controlled by
-`COOKIE_SECURE`, `COOKIE_SAME_SITE`, `COOKIE_DOMAIN`, and
-`REFRESH_COOKIE_MAX_AGE_SECONDS`; secure cookies are mandatory in production and
-`SameSite=none` requires secure cookies.
+Login returns only the public user ID and email. The gateway stores the access token
+in the HttpOnly `gridx_access` cookie with `Path=/`, `SameSite=Lax`, and a
+`Max-Age` matching the token lifetime. `COOKIE_SECURE` controls the `Secure`
+attribute and must remain enabled in production. Refresh tokens are ignored and
+are never stored, returned, logged, or set in a cookie.
+
+The gateway stores `sha256(accessToken)` in Redis under
+`auth:session:<userId>`, with the token lifetime as the Redis TTL. This is one
+active session per user: a new login replaces the previous token hash. Every
+authenticated request must pass JWT verification and match this Redis value.
+Logout deletes the Redis entry and clears the access cookie.
 
 ## CORS
 

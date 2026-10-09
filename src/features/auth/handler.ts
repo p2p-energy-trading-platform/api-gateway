@@ -5,7 +5,8 @@ import { mapRegisterResponse } from './mapper.js';
 import { mapLoginResponse, mapMeResponse } from './mapper.js';
 import type { LoginBody } from './schemas.js';
 import { AppError } from '../../errors/app-error.js';
-import { clearAuthCookies, REFRESH_COOKIE_NAME, setAuthCookies } from './cookies.js';
+import { clearAccessCookie, setAccessCookie } from './cookies.js';
+import { deleteAccessToken, storeAccessToken } from './session-store.js';
 
 export async function registerHandler(
   request: FastifyRequest<{ Body: RegisterBody }>,
@@ -31,63 +32,36 @@ export async function loginHandler(
     grpcDeadlinesMs.authLogin,
   );
 
-  setAuthCookies(
-    reply,
-    request.server.config,
-    result.accessToken,
-    result.refreshToken,
-    Number(result.expiresIn),
-  );
-
-  return reply.code(200).send(mapLoginResponse(result));
-}
-
-export async function refreshHandler(
-  request: FastifyRequest,
-  reply: FastifyReply,
-): Promise<FastifyReply> {
-  const refreshToken = request.cookies?.[REFRESH_COOKIE_NAME];
-
-  if (refreshToken === undefined) {
-    throw new AppError('UNAUTHENTICATED');
-  }
+  const expiresIn = Number(result.expiresIn);
 
   try {
-    const result = await request.server.grpcClients.auth.refreshToken(
-      { refreshToken },
-      grpcDeadlinesMs.authRefresh,
-    );
-
-    setAuthCookies(
-      reply,
-      request.server.config,
-      result.accessToken,
-      result.refreshToken,
-      Number(result.expiresIn),
-    );
-
-    return reply.code(204).send();
+    await storeAccessToken(request.server.redis, result.userId, result.accessToken, expiresIn);
   } catch (error) {
-    clearAuthCookies(reply, request.server.config);
-    throw error;
+    request.log.error({ err: error }, 'Could not store access token session');
+    throw new AppError('UPSTREAM_UNAVAILABLE');
   }
+
+  setAccessCookie(reply, request.server.config, result.accessToken, expiresIn);
+
+  return reply.code(200).send(mapLoginResponse(result));
 }
 
 export async function logoutHandler(
   request: FastifyRequest,
   reply: FastifyReply,
 ): Promise<FastifyReply> {
-  const refreshToken = request.cookies?.[REFRESH_COOKIE_NAME];
-
-  if (refreshToken !== undefined) {
-    try {
-      await request.server.grpcClients.auth.logout({ refreshToken }, grpcDeadlinesMs.authLogout);
-    } catch (error) {
-      request.log.warn({ err: error }, 'Auth-service logout failed; clearing gateway cookies');
-    }
+  if (request.principal === null) {
+    throw new AppError('UNAUTHENTICATED');
   }
 
-  clearAuthCookies(reply, request.server.config);
+  try {
+    await deleteAccessToken(request.server.redis, request.principal.userId);
+  } catch (error) {
+    request.log.error({ err: error }, 'Could not delete access token session');
+    throw new AppError('UPSTREAM_UNAVAILABLE');
+  }
+
+  clearAccessCookie(reply, request.server.config);
   return reply.code(204).send();
 }
 

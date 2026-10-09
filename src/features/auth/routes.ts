@@ -1,11 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import {
-  loginHandler,
-  logoutHandler,
-  meHandler,
-  refreshHandler,
-  registerHandler,
-} from './handler.js';
+import { loginHandler, logoutHandler, meHandler, registerHandler } from './handler.js';
 import {
   loginBodySchema,
   loginResponseSchema,
@@ -45,17 +39,9 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
   );
 
   app.post(
-    '/api/v1/auth/refresh',
-    {
-      config: { rateLimit: 'auth-refresh', auth: 'public' },
-    },
-    refreshHandler,
-  );
-
-  app.post(
     '/api/v1/auth/logout',
     {
-      config: { rateLimit: 'auth-logout', auth: 'public' },
+      config: { rateLimit: 'authenticated-write', auth: 'required' },
     },
     logoutHandler,
   );
