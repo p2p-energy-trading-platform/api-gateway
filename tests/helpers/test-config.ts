@@ -24,12 +24,6 @@ export const testConfig: AppConfig = {
     origins: ['http://localhost:5173'],
   },
 
-  cookies: {
-    secure: false,
-    sameSite: 'lax',
-    refreshMaxAgeSeconds: 2_592_000,
-  },
-
   redis: {
     url: 'redis://localhost:6379',
     connectTimeoutMs: 2_000,

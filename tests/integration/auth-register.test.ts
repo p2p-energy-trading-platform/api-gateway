@@ -9,6 +9,8 @@ import { startFakeAuthService, type FakeAuthService } from '../helpers/fake-auth
 import { testConfig } from '../helpers/test-config.js';
 
 const URL = '/api/v1/auth/register';
+const ALLOWED_ORIGIN = 'http://localhost:5173';
+const UNKNOWN_ORIGIN = 'https://evil.example.com';
 const VALID_BODY = { email: 'new@example.com', password: 'a-long-password' };
 
 function registerSucceeds(email: string) {
@@ -159,10 +161,53 @@ describe('POST /api/v1/auth/register', () => {
     const codes: number[] = [];
 
     for (let i = 0; i < 6; i += 1) {
-      const response = await instance.inject({ method: 'POST', url: URL, payload: VALID_BODY });
+      const response = await instance.inject({
+        method: 'POST',
+        url: URL,
+        payload: VALID_BODY,
+        headers: { origin: ALLOWED_ORIGIN },
+      });
       codes.push(response.statusCode);
+
+      if (i === 5) {
+        expect(response.headers['access-control-expose-headers']).toContain('Retry-After');
+      }
     }
 
     expect(codes).toEqual([201, 201, 201, 201, 201, 429]);
+  });
+
+  it('allows credentialed register preflight requests from a configured origin', async () => {
+    const instance = await setup(registerSucceeds);
+
+    const response = await instance.inject({
+      method: 'OPTIONS',
+      url: URL,
+      headers: {
+        origin: ALLOWED_ORIGIN,
+        'access-control-request-method': 'POST',
+        'access-control-request-headers': 'content-type',
+      },
+    });
+
+    expect(response.statusCode).toBe(204);
+    expect(response.headers['access-control-allow-origin']).toBe(ALLOWED_ORIGIN);
+    expect(response.headers['access-control-allow-credentials']).toBe('true');
+  });
+
+  it('does not allow register requests from an unknown origin', async () => {
+    const instance = await setup(registerSucceeds);
+
+    const response = await instance.inject({
+      method: 'OPTIONS',
+      url: URL,
+      headers: {
+        origin: UNKNOWN_ORIGIN,
+        'access-control-request-method': 'POST',
+        'access-control-request-headers': 'content-type',
+      },
+    });
+
+    expect(response.headers['access-control-allow-origin']).toBeUndefined();
   });
 });

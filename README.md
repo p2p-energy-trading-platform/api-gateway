@@ -264,6 +264,12 @@ HttpOnly `gridx_access` and `gridx_refresh` cookies. Cookie security is controll
 `REFRESH_COOKIE_MAX_AGE_SECONDS`; secure cookies are mandatory in production and
 `SameSite=none` requires secure cookies.
 
+## CORS
+
+Credentials are enabled for browser requests, so `CORS_ORIGINS` must contain
+explicit origins and must not use the wildcard `*`. Each browser origin that
+needs to call the gateway must be listed exactly in `CORS_ORIGINS`.
+
 Because cookies are sent automatically by browsers, state-changing requests carrying a
 gateway cookie must include an `Origin` that exactly matches `CORS_ORIGINS`. This small
 CSRF check complements CORS and protects the cookie-authenticated routes.
