@@ -31,7 +31,7 @@ describe('CORS and security headers', () => {
       });
 
       expect(response.headers['access-control-allow-origin']).toBe(ALLOWED_ORIGIN);
-      expect(response.headers['access-control-expose-headers']).toBe('X-Request-Id');
+      expect(response.headers['access-control-expose-headers']).toBe('X-Request-Id, Retry-After');
     });
 
     it('does not allow an unknown origin', async () => {
@@ -64,14 +64,14 @@ describe('CORS and security headers', () => {
       expect(response.headers['access-control-max-age']).toBe('600');
     });
 
-    it('does not allow credentials', async () => {
+    it('allows credentials for configured origins', async () => {
       const response = await (await build()).inject({
         method: 'GET',
         url: '/health/live',
         headers: { origin: ALLOWED_ORIGIN },
       });
 
-      expect(response.headers['access-control-allow-credentials']).toBeUndefined();
+      expect(response.headers['access-control-allow-credentials']).toBe('true');
     });
   });
 
