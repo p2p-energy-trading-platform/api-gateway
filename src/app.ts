@@ -99,7 +99,6 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
   await registerSecurity(app, config);
   await registerCors(app, config);
   await app.register(cookie);
-  await app.register(csrf, { config });
 
   if (registerInfrastructure) {
     await app.register(redisPlugin, {
@@ -109,6 +108,8 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
     await app.register(rateLimitPlugin, {
       config,
     });
+
+    await app.register(csrf, { config });
 
     await app.register(authenticationPlugin, {
       config,
