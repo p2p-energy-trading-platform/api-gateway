@@ -7,16 +7,20 @@ import type { AppConfig } from '../config/types.js';
 const PREFLIGHT_MAX_AGE_SECONDS = 600;
 
 export async function registerCors(app: FastifyInstance, config: AppConfig): Promise<void> {
+  if (config.cors.origins.includes('*')) {
+    throw new Error('CORS_ORIGINS must not contain a wildcard (*).');
+  }
+
   await app.register(cors, {
     origin: config.cors.origins,
 
-    credentials: false,
+    credentials: true,
 
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
 
     allowedHeaders: ['Authorization', 'Content-Type', 'X-Request-Id', 'Idempotency-Key'],
 
-    exposedHeaders: ['X-Request-Id'],
+    exposedHeaders: ['X-Request-Id', 'Retry-After'],
 
     maxAge: PREFLIGHT_MAX_AGE_SECONDS,
   });
