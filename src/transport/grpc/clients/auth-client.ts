@@ -2,13 +2,20 @@ import { createClient, type Client, type Transport } from '@connectrpc/connect';
 import { AuthService } from '@p2p-energy-trading-platform/typescript-sdk/gen/gridx/auth/v1/auth_pb';
 import { DEFAULT_GRPC_TIMEOUT_MS } from '../deadlines.js';
 import { toAppError } from '../errors.js';
+import type { FastifyBaseLogger } from 'fastify';
 
 export class AuthGrpcClient {
   private readonly client: Client<typeof AuthService>;
+  private log: FastifyBaseLogger;
   private readonly defaultTimeoutMs: number;
 
-  constructor(transport: Transport, defaultTimeoutMs = DEFAULT_GRPC_TIMEOUT_MS) {
+  constructor(
+    transport: Transport,
+    log: FastifyBaseLogger,
+    defaultTimeoutMs = DEFAULT_GRPC_TIMEOUT_MS,
+  ) {
     this.client = createClient(AuthService, transport);
+    this.log = log;
     this.defaultTimeoutMs = defaultTimeoutMs;
   }
 
@@ -19,6 +26,7 @@ export class AuthGrpcClient {
     try {
       return await this.client.login(params, { timeoutMs });
     } catch (err) {
+      this.log.error({ err: err }, 'Failed to login');
       throw toAppError(err);
     }
   }
@@ -30,6 +38,7 @@ export class AuthGrpcClient {
     try {
       return await this.client.register(params, { timeoutMs });
     } catch (err) {
+      this.log.error({ err: err }, 'Failed to register');
       throw toAppError(err);
     }
   }
@@ -41,6 +50,7 @@ export class AuthGrpcClient {
     try {
       return await this.client.refreshToken(params, { timeoutMs });
     } catch (err) {
+      this.log.error({ err: err }, 'Failed to refresh token');
       throw toAppError(err);
     }
   }
@@ -52,6 +62,7 @@ export class AuthGrpcClient {
     try {
       return await this.client.logout(params, { timeoutMs });
     } catch (err) {
+      this.log.error({ err: err }, 'Failed to logout');
       throw toAppError(err);
     }
   }
@@ -63,6 +74,7 @@ export class AuthGrpcClient {
     try {
       return await this.client.getUser(params, { timeoutMs });
     } catch (err) {
+      this.log.error({ err: err }, 'Failed to get user');
       throw toAppError(err);
     }
   }
@@ -74,6 +86,7 @@ export class AuthGrpcClient {
     try {
       return await this.client.checkPermission(params, { timeoutMs });
     } catch (err) {
+      this.log.error({ err: err }, 'Failed to check permission');
       throw toAppError(err);
     }
   }

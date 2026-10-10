@@ -24,7 +24,7 @@ const grpcPlugin: FastifyPluginAsync = fp(async (fastify) => {
   });
 
   fastify.decorate('grpcClients', {
-    auth: new AuthGrpcClient(authTransport),
+    auth: new AuthGrpcClient(authTransport, fastify.log),
   });
 });
 
