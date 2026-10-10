@@ -209,7 +209,7 @@ describe('authentication', () => {
       const register = await app.inject({
         method: 'POST',
         url: '/api/v1/auth/register',
-        payload: { email: 'new@example.com', password: 'a-long-password' },
+        payload: { name: 'New User', email: 'new@example.com', password: 'a-long-password' },
       });
 
       expect(health.statusCode).toBe(200);
