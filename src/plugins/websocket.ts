@@ -14,21 +14,6 @@ import { startHeartbeat } from '../websocket/heartbeat.js';
 import { errorMessage, parseClientMessage, type ParseResult } from '../websocket/protocol.js';
 import { SubscriptionManager } from '../websocket/subscriptions.js';
 
-declare module 'fastify' {
-  interface FastifyInstance {
-    realtime: {
-      // Sends an event to every local connection subscribed to the topic key.
-      publish(topicKey: string, event: string, payload: unknown): number;
-      connectionCount(): number;
-      limits: WebsocketLimits;
-    };
-  }
-
-  interface FastifyRequest {
-    websocketUser: WebsocketUser | null;
-  }
-}
-
 export interface WebsocketPluginOptions {
   config: AppConfig;
   limits?: Partial<WebsocketLimits>;
