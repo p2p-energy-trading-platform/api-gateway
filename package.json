@@ -45,7 +45,7 @@
     "@fastify/request-context": "^7.0.0",
     "@fastify/type-provider-typebox": "^6.1.0",
     "@fastify/websocket": "^11.3.0",
-    "@p2p-energy-trading-platform/typescript-sdk": "github:p2p-energy-trading-platform/typescript-sdk#v1.10.2",
+    "@p2p-energy-trading-platform/typescript-sdk": "github:p2p-energy-trading-platform/typescript-sdk#v1.11.0",
     "ajv": "^8.20.0",
     "ajv-formats": "^3.0.1",
     "dotenv": "^17.4.2",

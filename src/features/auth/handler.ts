@@ -23,6 +23,12 @@ export async function registerHandler(
     grpcDeadlinesMs.authRegister,
   );
 
+  setSessionCookies(reply, request.server.config, {
+    accessToken: result.accessToken,
+    refreshToken: result.refreshToken,
+    expiresIn: Number(result.expiresIn),
+  });
+
   reply.code(201);
 
   return mapRegisterResponse(result);
