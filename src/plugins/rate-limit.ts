@@ -5,19 +5,9 @@ import type { FastifyPluginAsync } from 'fastify';
 
 import type { AppConfig } from '../config/types.js';
 import { AppError } from '../errors/app-error.js';
-import {
-  DEFAULT_RATE_LIMIT_POLICY,
-  rateLimitPolicies,
-  type RateLimitPolicyName,
-} from '../policies/rate-limits.js';
+import { DEFAULT_RATE_LIMIT_POLICY, rateLimitPolicies } from '../policies/rate-limits.js';
 import { hashIdentity, rateLimitKey } from '../transport/redis/keys.js';
 import { consumeRateLimit } from '../transport/redis/rate-limit.js';
-
-declare module 'fastify' {
-  interface FastifyContextConfig {
-    rateLimit?: RateLimitPolicyName | false;
-  }
-}
 
 export interface RateLimitPluginOptions {
   config: AppConfig;

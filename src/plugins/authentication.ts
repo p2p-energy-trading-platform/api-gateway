@@ -5,19 +5,8 @@ import { createRemoteJWKSet, errors, jwtVerify, type JWTPayload } from 'jose';
 import type { AppConfig } from '../config/types.js';
 import { ACCESS_COOKIE_NAME } from '../features/auth/cookies.js';
 import { AppError } from '../errors/app-error.js';
-import { DEFAULT_ROUTE_AUTH_POLICY, type RouteAuthPolicy } from '../policies/route-auth.js';
+import { DEFAULT_ROUTE_AUTH_POLICY } from '../policies/route-auth.js';
 import type { AuthenticatedPrincipal } from '../types/authentication.js';
-
-declare module 'fastify' {
-  interface FastifyContextConfig {
-    auth?: RouteAuthPolicy;
-  }
-
-  interface FastifyRequest {
-    // Set only after the access token has been verified; null for anonymous requests.
-    principal: AuthenticatedPrincipal | null;
-  }
-}
 
 export interface AuthenticationPluginOptions {
   config: AppConfig;
