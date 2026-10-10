@@ -44,3 +44,9 @@ declare module 'fastify' {
     websocketUser: WebsocketUser | null;
   }
 }
+
+declare module '@fastify/cookie' {
+  import { FastifyPluginAsync } from 'fastify';
+  const fastifyCookie: FastifyPluginAsync<any>;
+  export default fastifyCookie;
+}
