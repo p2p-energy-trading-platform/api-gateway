@@ -9,8 +9,9 @@ export function mapRegisterResponse(result: GrpcRegisterResponse): RegisterRespo
     userId: result.userId,
     email: result.email,
     status: result.status,
-    createdAt: result.createdAtTime ? 
-      timestampDate(result.createdAtTime).toISOString() : new Date().toISOString(),
+    createdAt: result.createdAtTime
+      ? timestampDate(result.createdAtTime).toISOString()
+      : new Date().toISOString(),
   };
 }
 
