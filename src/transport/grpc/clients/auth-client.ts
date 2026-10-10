@@ -19,6 +19,28 @@ export class AuthGrpcClient {
     this.defaultTimeoutMs = defaultTimeoutMs;
   }
 
+  async verifyEmail(
+    params: Parameters<Client<typeof AuthService>['verifyEmail']>[0],
+    timeoutMs = this.defaultTimeoutMs,
+  ) {
+    try {
+      return await this.client.verifyEmail(params, { timeoutMs });
+    } catch (err) {
+      throw toAppError(err);
+    }
+  }
+
+  async resendOtp(
+    params: Parameters<Client<typeof AuthService>['resendOtp']>[0],
+    timeoutMs = this.defaultTimeoutMs,
+  ) {
+    try {
+      return await this.client.resendOtp(params, { timeoutMs });
+    } catch (err) {
+      throw toAppError(err);
+    }
+  }
+
   async login(
     params: Parameters<Client<typeof AuthService>['login']>[0],
     timeoutMs = this.defaultTimeoutMs,
@@ -75,6 +97,83 @@ export class AuthGrpcClient {
       return await this.client.getUser(params, { timeoutMs });
     } catch (err) {
       this.log.error({ err: err }, 'Failed to get user');
+      throw toAppError(err);
+    }
+  }
+
+  async getProfile(
+    params: Parameters<Client<typeof AuthService>['getProfile']>[0],
+    timeoutMs = this.defaultTimeoutMs,
+  ) {
+    try {
+      return await this.client.getProfile(params, { timeoutMs });
+    } catch (err) {
+      throw toAppError(err);
+    }
+  }
+
+  async updateProfile(
+    params: Parameters<Client<typeof AuthService>['updateProfile']>[0],
+    timeoutMs = this.defaultTimeoutMs,
+  ) {
+    try {
+      return await this.client.updateProfile(params, { timeoutMs });
+    } catch (err) {
+      throw toAppError(err);
+    }
+  }
+
+  async changePassword(
+    params: Parameters<Client<typeof AuthService>['changePassword']>[0],
+    timeoutMs = this.defaultTimeoutMs,
+  ) {
+    try {
+      return await this.client.changePassword(params, { timeoutMs });
+    } catch (err) {
+      throw toAppError(err);
+    }
+  }
+
+  async requestEmailChange(
+    params: Parameters<Client<typeof AuthService>['requestEmailChange']>[0],
+    timeoutMs = this.defaultTimeoutMs,
+  ) {
+    try {
+      return await this.client.requestEmailChange(params, { timeoutMs });
+    } catch (err) {
+      throw toAppError(err);
+    }
+  }
+
+  async verifyEmailChange(
+    params: Parameters<Client<typeof AuthService>['verifyEmailChange']>[0],
+    timeoutMs = this.defaultTimeoutMs,
+  ) {
+    try {
+      return await this.client.verifyEmailChange(params, { timeoutMs });
+    } catch (err) {
+      throw toAppError(err);
+    }
+  }
+
+  async requestPasswordReset(
+    params: Parameters<Client<typeof AuthService>['requestPasswordReset']>[0],
+    timeoutMs = this.defaultTimeoutMs,
+  ) {
+    try {
+      return await this.client.requestPasswordReset(params, { timeoutMs });
+    } catch (err) {
+      throw toAppError(err);
+    }
+  }
+
+  async resetPassword(
+    params: Parameters<Client<typeof AuthService>['resetPassword']>[0],
+    timeoutMs = this.defaultTimeoutMs,
+  ) {
+    try {
+      return await this.client.resetPassword(params, { timeoutMs });
+    } catch (err) {
       throw toAppError(err);
     }
   }
