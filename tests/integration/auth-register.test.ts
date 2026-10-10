@@ -7,6 +7,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { buildApp } from '../../src/app.js';
 import { startFakeAuthService, type FakeAuthService } from '../helpers/fake-auth-service.js';
 import { testConfig } from '../helpers/test-config.js';
+import { timestampFromDate } from '@bufbuild/protobuf/wkt';
 
 const URL = '/api/v1/auth/register';
 const ALLOWED_ORIGIN = 'http://localhost:5173';
@@ -14,7 +15,7 @@ const UNKNOWN_ORIGIN = 'https://evil.example.com';
 const VALID_BODY = { email: 'new@example.com', password: 'a-long-password' };
 
 function registerSucceeds(email: string) {
-  return { userId: 'user-1', email, status: 'active', createdAt: '2026-10-06T10:00:00Z' };
+  return { userId: 'user-1', email, status: 'active', createdAtTime: timestampFromDate(new Date('2026-10-06T10:00:00Z')) };
 }
 
 function registerFails(message: string, code: Code) {
@@ -73,7 +74,7 @@ describe('POST /api/v1/auth/register', () => {
       userId: 'user-1',
       email: 'new@example.com',
       status: 'active',
-      createdAt: '2026-10-06T10:00:00Z',
+      createdAt: '2026-10-06T10:00:00.000Z',
     });
     expect(received).toEqual([VALID_BODY]);
   });

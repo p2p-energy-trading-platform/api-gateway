@@ -11,7 +11,7 @@ export const registerResponseSchema = strictObject({
   userId: Type.String(),
   email: Type.String(),
   status: Type.String(),
-  createdAt: Type.String(),
+  createdAt: Type.String({ format: 'date-time' }),
 });
 
 export type RegisterBody = Static<typeof registerBodySchema>;

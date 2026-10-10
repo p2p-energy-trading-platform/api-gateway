@@ -2,13 +2,16 @@ import type { RegisterResponse as GrpcRegisterResponse } from '@p2p-energy-tradi
 
 import type { RegisterResponse } from './schemas.js';
 import type { LoginResponse, MeResponse } from './schemas.js';
+import { timestampDate } from '@bufbuild/protobuf/wkt';
 
 export function mapRegisterResponse(result: GrpcRegisterResponse): RegisterResponse {
   return {
     userId: result.userId,
     email: result.email,
     status: result.status,
-    createdAt: result.createdAt,
+    createdAt: result.createdAtTime
+      ? timestampDate(result.createdAtTime).toISOString()
+      : new Date().toISOString(),
   };
 }
 
