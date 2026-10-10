@@ -3,6 +3,7 @@ import { Type, type Static } from 'typebox';
 import { emailSchema, strictObject } from '../../common/validation.js';
 
 export const registerBodySchema = strictObject({
+  name: Type.String({ minLength: 1, maxLength: 100, pattern: '\\S' }),
   email: emailSchema,
   password: Type.String({ minLength: 8, maxLength: 128 }),
 });
