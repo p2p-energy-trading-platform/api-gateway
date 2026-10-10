@@ -30,6 +30,6 @@ declare module 'fastify' {
   interface FastifyRequest {
     traceContext: TraceContext;
     principal: AuthenticatedPrincipal | null;
-    cookies: { [key: string]: string | undefined };
+    cookies: Record<string, string | undefined>;
   }
 }
