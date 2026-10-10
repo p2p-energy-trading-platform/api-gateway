@@ -17,6 +17,7 @@ export async function registerHandler(
 ): Promise<RegisterResponse> {
   const result = await request.server.grpcClients.auth.register(
     {
+      name: request.body.name.trim(),
       email: request.body.email,
       password: request.body.password,
     },
