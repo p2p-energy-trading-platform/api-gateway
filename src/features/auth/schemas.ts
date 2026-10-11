@@ -56,6 +56,7 @@ export const loginResponseSchema = strictObject({
 export const meResponseSchema = strictObject({
   userId: Type.String(),
   email: Type.String(),
+  name: Type.String(),
   status: Type.String(),
   role: Type.String(),
 });
