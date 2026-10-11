@@ -37,6 +37,7 @@ describe('cookie sessions', () => {
       getUser: async ({ userId }) => ({
         userId,
         email: 'user@example.com',
+        name: 'Test User',
         status: 'ACTIVE',
         role: 'USER',
       }),
@@ -107,6 +108,7 @@ describe('cookie sessions', () => {
       expect(response.json()).toEqual({
         userId: 'session-user-1',
         email: 'user@example.com',
+        name: 'Test User',
         status: 'ACTIVE',
         role: 'USER',
       });
