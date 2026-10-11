@@ -23,6 +23,7 @@ export function mapMeResponse(result: MeResponse): MeResponse {
   return {
     userId: result.userId,
     email: result.email,
+    name: result.name,
     status: result.status,
     role: result.role,
   };
