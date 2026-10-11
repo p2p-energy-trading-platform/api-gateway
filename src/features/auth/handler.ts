@@ -1,15 +1,57 @@
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import { grpcDeadlinesMs } from '../../transport/grpc/deadlines.js';
 import type {
+  ProfileResponse,
+  UpdateProfileBody,
+  ChangePasswordBody,
+  ChangePasswordResponse,
+  RequestEmailChangeBody,
+  RequestEmailChangeResponse,
+  VerifyEmailChangeBody,
   LoginBody,
+  ResendOtpBody,
+  ResendOtpResponse,
+  VerifyEmailBody,
+  VerifyEmailResponse,
   LoginResponse,
   MeResponse,
   RegisterBody,
   RegisterResponse,
+  RequestPasswordResetBody,
+  RequestPasswordResetResponse,
+  ResetPasswordBody,
+  ResetPasswordResponse,
 } from './schemas.js';
-import { mapLoginResponse, mapMeResponse, mapRegisterResponse } from './mapper.js';
+import {
+  mapLoginResponse,
+  mapMeResponse,
+  mapProfileResponse,
+  mapRegisterResponse,
+} from './mapper.js';
 import { AppError } from '../../errors/app-error.js';
 import { clearSessionCookies, readRefreshToken, setSessionCookies } from './cookies.js';
+
+export async function verifyEmailHandler(
+  request: FastifyRequest<{ Body: VerifyEmailBody }>,
+): Promise<VerifyEmailResponse> {
+  const result = await request.server.grpcClients.auth.verifyEmail(
+    { email: request.body.email, otp: request.body.otp },
+    grpcDeadlinesMs.authVerifyEmail,
+  );
+
+  return { success: result.success, message: result.message };
+}
+
+export async function resendOtpHandler(
+  request: FastifyRequest<{ Body: ResendOtpBody }>,
+): Promise<ResendOtpResponse> {
+  const result = await request.server.grpcClients.auth.resendOtp(
+    { email: request.body.email },
+    grpcDeadlinesMs.authResendOtp,
+  );
+
+  return { success: result.success };
+}
 
 export async function registerHandler(
   request: FastifyRequest<{ Body: RegisterBody }>,
@@ -33,6 +75,31 @@ export async function registerHandler(
   reply.code(201);
 
   return mapRegisterResponse(result);
+}
+
+export async function requestPasswordResetHandler(
+  request: FastifyRequest<{ Body: RequestPasswordResetBody }>,
+): Promise<RequestPasswordResetResponse> {
+  const result = await request.server.grpcClients.auth.requestPasswordReset(
+    { email: request.body.email },
+    grpcDeadlinesMs.authPasswordReset,
+  );
+
+  return { success: result.success };
+}
+
+export async function resetPasswordHandler(
+  request: FastifyRequest<{ Body: ResetPasswordBody }>,
+): Promise<ResetPasswordResponse> {
+  const result = await request.server.grpcClients.auth.resetPassword(
+    {
+      token: request.body.token,
+      newPassword: request.body.newPassword,
+    },
+    grpcDeadlinesMs.authResetPassword,
+  );
+
+  return { success: result.success };
 }
 
 export async function loginHandler(
@@ -124,4 +191,76 @@ export async function meHandler(request: FastifyRequest): Promise<MeResponse> {
   );
 
   return mapMeResponse(result);
+}
+
+export async function getProfileHandler(request: FastifyRequest): Promise<ProfileResponse> {
+  if (request.principal === null) {
+    throw new AppError('UNAUTHENTICATED');
+  }
+
+  const result = await request.server.grpcClients.auth.getProfile(
+    {},
+    grpcDeadlinesMs.authGetProfile,
+  );
+
+  return mapProfileResponse(result.profile);
+}
+
+export async function updateProfileHandler(
+  request: FastifyRequest<{ Body: UpdateProfileBody }>,
+): Promise<ProfileResponse> {
+  if (request.principal === null) {
+    throw new AppError('UNAUTHENTICATED');
+  }
+
+  const result = await request.server.grpcClients.auth.updateProfile(
+    { name: request.body.name },
+    grpcDeadlinesMs.authUpdateProfile,
+  );
+
+  return mapProfileResponse(result.profile);
+}
+
+export async function changePasswordHandler(
+  request: FastifyRequest<{ Body: ChangePasswordBody }>,
+): Promise<ChangePasswordResponse> {
+  if (request.principal === null) {
+    throw new AppError('UNAUTHENTICATED');
+  }
+
+  const result = await request.server.grpcClients.auth.changePassword(
+    {
+      currentPassword: request.body.currentPassword,
+      newPassword: request.body.newPassword,
+    },
+    grpcDeadlinesMs.authChangePassword,
+  );
+
+  return { success: result.success };
+}
+
+export async function requestEmailChangeHandler(
+  request: FastifyRequest<{ Body: RequestEmailChangeBody }>,
+): Promise<RequestEmailChangeResponse> {
+  if (request.principal === null) {
+    throw new AppError('UNAUTHENTICATED');
+  }
+
+  const result = await request.server.grpcClients.auth.requestEmailChange(
+    { newEmail: request.body.newEmail },
+    grpcDeadlinesMs.authRequestEmailChange,
+  );
+
+  return { success: result.success };
+}
+
+export async function verifyEmailChangeHandler(
+  request: FastifyRequest<{ Body: VerifyEmailChangeBody }>,
+): Promise<ProfileResponse> {
+  const result = await request.server.grpcClients.auth.verifyEmailChange(
+    { token: request.body.token },
+    grpcDeadlinesMs.authVerifyEmailChange,
+  );
+
+  return mapProfileResponse(result.profile);
 }

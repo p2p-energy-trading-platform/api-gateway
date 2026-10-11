@@ -27,3 +27,25 @@ export function mapMeResponse(result: MeResponse): MeResponse {
     role: result.role,
   };
 }
+
+export interface ProfileView {
+  userId: string;
+  email: string;
+  name: string;
+  status: string;
+  createdAt: string;
+}
+
+export function mapProfileResponse(profile: ProfileView | undefined): ProfileView {
+  if (profile === undefined) {
+    throw new Error('Auth Service returned an empty profile');
+  }
+
+  return {
+    userId: profile.userId,
+    email: profile.email,
+    name: profile.name,
+    status: profile.status,
+    createdAt: profile.createdAt,
+  };
+}
