@@ -19,3 +19,21 @@ export const kycUploadUrlResponseSchema = strictObject({
 
 export type KycUploadUrlBody = Static<typeof kycUploadUrlBodySchema>;
 export type KycUploadUrlResponse = Static<typeof kycUploadUrlResponseSchema>;
+
+export const kycSubmitBodySchema = strictObject({
+  fullName: Type.String({ minLength: 1, maxLength: 255 }),
+  dateOfBirth: Type.String({ format: 'date' }),
+  dubaiId: Type.String({ minLength: 1, maxLength: 100 }),
+  documentPath: Type.String({ minLength: 1, maxLength: 512 }),
+});
+
+export const kycSubmitResponseSchema = strictObject({
+  id: Type.String(),
+  state: Type.Union([Type.Literal('PENDING'), Type.Literal('VERIFIED'), Type.Literal('REJECTED')]),
+  rejectionReason: Type.Optional(Type.String()),
+  createdAt: Type.String({ format: 'date-time' }),
+  updatedAt: Type.String({ format: 'date-time' }),
+});
+
+export type KycSubmitBody = Static<typeof kycSubmitBodySchema>;
+export type KycSubmitResponse = Static<typeof kycSubmitResponseSchema>;
