@@ -2,6 +2,12 @@ import type { TypeBoxTypeProvider } from '@fastify/type-provider-typebox';
 import type { FastifyInstance } from 'fastify';
 
 import {
+  googleCallbackHandler,
+  googleCallbackQuerySchema,
+  googleStartHandler,
+  googleStartQuerySchema,
+} from './google.js';
+import {
   loginHandler,
   logoutHandler,
   meHandler,
@@ -42,6 +48,25 @@ import {
 
 export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
   const router = app.withTypeProvider<TypeBoxTypeProvider>();
+
+  // Browser navigations (redirects), not JSON API calls.
+  router.get(
+    '/api/v1/auth/google/start',
+    {
+      config: { rateLimit: 'auth-google', auth: 'public' },
+      schema: { querystring: googleStartQuerySchema },
+    },
+    googleStartHandler,
+  );
+
+  router.get(
+    '/api/v1/auth/google/callback',
+    {
+      config: { rateLimit: 'auth-google', auth: 'public' },
+      schema: { querystring: googleCallbackQuerySchema },
+    },
+    googleCallbackHandler,
+  );
 
   router.post(
     '/api/v1/auth/register',
