@@ -16,7 +16,7 @@ const GOOGLE_SCOPES = 'openid email profile';
 const STATE_COOKIE_PATH = '/api/v1/auth/google';
 const STATE_TTL_SECONDS = 600;
 const DEFAULT_RETURN_TO = '/dashboard';
-const NEW_USER_RETURN_TO = '/sign-up';
+const NEW_USER_RETURN_TO = '/sign-up?step=kyc';
 const FAILURE_PATH = '/sign-in?error=google';
 
 export const googleStartQuerySchema = Type.Object({
