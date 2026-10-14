@@ -240,7 +240,7 @@ describe('Google sign-in', () => {
 
       const response = await callback(instance, { code: 'auth-code', state }, stateCookie?.value);
 
-      expect(response.headers.location).toBe(`${FRONTEND}/sign-up`);
+      expect(response.headers.location).toBe(`${FRONTEND}/sign-up?step=kyc`);
     });
 
     it('clears the state cookie', async () => {
