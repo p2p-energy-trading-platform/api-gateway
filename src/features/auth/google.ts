@@ -9,8 +9,6 @@ import { grpcDeadlinesMs } from '../../transport/grpc/deadlines.js';
 import type { RedisClient } from '../../transport/redis/client.js';
 import { setSessionCookies } from './cookies.js';
 
-
-
 export const GOOGLE_STATE_COOKIE_NAME = 'gridx_oauth_state';
 
 const GOOGLE_AUTHORIZE_URL = 'https://accounts.google.com/o/oauth2/v2/auth';
