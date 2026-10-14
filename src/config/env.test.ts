@@ -38,6 +38,9 @@ const ALL_SCHEMA_KEYS = [
   'AUTH_CLOCK_TOLERANCE_SECONDS',
   'AUTH_JWKS_CACHE_TTL_SECONDS',
   'AUTH_JWKS_REQUEST_TIMEOUT_MS',
+  'GOOGLE_CLIENT_ID',
+  'GOOGLE_OAUTH_REDIRECT_URI',
+  'FRONTEND_BASE_URL',
 ];
 
 let originalEnv: NodeJS.ProcessEnv;
@@ -291,5 +294,55 @@ describe('parseAllowedAlgorithms', () => {
 
   it.each(['EDDSA', 'HS256', 'none', ''])('rejects "%s"', (raw) => {
     expect(() => parseAllowedAlgorithms(raw)).toThrowError(/AUTH_ALLOWED_ALGORITHMS/);
+  });
+});
+
+describe('Google sign-in config', () => {
+  const GOOGLE_ENV = {
+    GOOGLE_CLIENT_ID: 'client-id.apps.googleusercontent.com',
+    GOOGLE_OAUTH_REDIRECT_URI: 'http://localhost:8000/api/v1/auth/google/callback',
+    FRONTEND_BASE_URL: 'http://localhost:3000',
+    CORS_ORIGINS: 'http://localhost:3000',
+  };
+
+  it('is disabled when none of the Google settings are set', () => {
+    setEnv(REQUIRED_ENV);
+
+    expect(loadConfig().googleOAuth).toBeUndefined();
+  });
+
+  it('loads when all Google settings are set', () => {
+    setEnv({ ...REQUIRED_ENV, ...GOOGLE_ENV });
+
+    expect(loadConfig().googleOAuth).toEqual({
+      clientId: 'client-id.apps.googleusercontent.com',
+      redirectUri: 'http://localhost:8000/api/v1/auth/google/callback',
+      frontendBaseUrl: 'http://localhost:3000',
+    });
+  });
+
+  it.each(['GOOGLE_CLIENT_ID', 'GOOGLE_OAUTH_REDIRECT_URI', 'FRONTEND_BASE_URL'])(
+    'requires all Google settings together (missing %s)',
+    (missing) => {
+      setEnv({ ...REQUIRED_ENV, ...GOOGLE_ENV, [missing]: undefined });
+
+      expect(() => loadConfig()).toThrowError(/must be set together/);
+    },
+  );
+
+  it('rejects a redirect URI that is not the gateway callback', () => {
+    setEnv({
+      ...REQUIRED_ENV,
+      ...GOOGLE_ENV,
+      GOOGLE_OAUTH_REDIRECT_URI: 'http://localhost:8000/somewhere-else',
+    });
+
+    expect(() => loadConfig()).toThrowError(/api\/v1\/auth\/google\/callback/);
+  });
+
+  it('rejects a frontend URL that is not a trusted CORS origin', () => {
+    setEnv({ ...REQUIRED_ENV, ...GOOGLE_ENV, FRONTEND_BASE_URL: 'https://evil.example.com' });
+
+    expect(() => loadConfig()).toThrowError(/FRONTEND_BASE_URL must be one of CORS_ORIGINS/);
   });
 });

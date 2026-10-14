@@ -20,6 +20,7 @@ export const rateLimitPolicies = {
   'auth-resend-otp': { limit: 3, windowMs: ONE_MINUTE_MS },
   'auth-kyc-upload-url': { limit: 10, windowMs: ONE_MINUTE_MS },
   'auth-kyc-submit': { limit: 10, windowMs: ONE_MINUTE_MS },
+  'auth-google': { limit: 20, windowMs: ONE_MINUTE_MS },
   'websocket-connect': { limit: 20, windowMs: ONE_MINUTE_MS },
 } as const satisfies Record<string, RateLimitPolicy>;
 

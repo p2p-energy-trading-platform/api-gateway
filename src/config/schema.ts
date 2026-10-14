@@ -182,5 +182,17 @@ export const envSchema = {
     GRPC_TLS_KEY_PATH: {
       type: 'string',
     },
+
+    GOOGLE_CLIENT_ID: {
+      type: 'string',
+    },
+
+    GOOGLE_OAUTH_REDIRECT_URI: {
+      type: 'string',
+    },
+
+    FRONTEND_BASE_URL: {
+      type: 'string',
+    },
   },
 } as const;

@@ -17,6 +17,7 @@ export const grpcDeadlinesMs = {
   authResetPassword: 3_000,
   authSubmitKyc: 5_000,
   authCreateKycUploadUrl: 3_000,
+  authLoginWithGoogle: 8_000,
 } as const;
 
 export function getTimeoutOptions(timeoutMs: number = DEFAULT_GRPC_TIMEOUT_MS) {
