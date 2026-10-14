@@ -37,6 +37,9 @@ interface RawEnvironment {
   AUTH_CLOCK_TOLERANCE_SECONDS: number;
   AUTH_JWKS_CACHE_TTL_SECONDS: number;
   AUTH_JWKS_REQUEST_TIMEOUT_MS: number;
+  GOOGLE_CLIENT_ID?: string;
+  GOOGLE_OAUTH_REDIRECT_URI?: string;
+  FRONTEND_BASE_URL?: string;
 }
 
 const SUPPORTED_JWT_ALGORITHMS = ['EdDSA', 'ES256', 'RS256'];
@@ -141,6 +144,52 @@ export function parseAllowedAlgorithms(raw: string): string[] {
   return algorithms;
 }
 
+export function parseGoogleOAuthConfig(
+  env: Pick<
+    RawEnvironment,
+    'GOOGLE_CLIENT_ID' | 'GOOGLE_OAUTH_REDIRECT_URI' | 'FRONTEND_BASE_URL' | 'NODE_ENV'
+  >,
+  corsOrigins: string[],
+): AppConfig['googleOAuth'] {
+  const clientId = env.GOOGLE_CLIENT_ID?.trim() ?? '';
+  const redirectUri = env.GOOGLE_OAUTH_REDIRECT_URI?.trim() ?? '';
+  const frontendBaseUrl = env.FRONTEND_BASE_URL?.trim() ?? '';
+
+  if (!clientId && !redirectUri && !frontendBaseUrl) {
+    return undefined;
+  }
+
+  if (!clientId || !redirectUri || !frontendBaseUrl) {
+    throw new Error(
+      'GOOGLE_CLIENT_ID, GOOGLE_OAUTH_REDIRECT_URI and FRONTEND_BASE_URL must be set together.',
+    );
+  }
+
+  let redirect: URL;
+  try {
+    redirect = new URL(redirectUri);
+  } catch {
+    throw new Error(`GOOGLE_OAUTH_REDIRECT_URI is not a valid URL: "${redirectUri}".`);
+  }
+
+  if (!redirect.pathname.endsWith('/api/v1/auth/google/callback')) {
+    throw new Error('GOOGLE_OAUTH_REDIRECT_URI must point to /api/v1/auth/google/callback.');
+  }
+
+  if (env.NODE_ENV === 'production' && redirect.protocol !== 'https:') {
+    throw new Error('GOOGLE_OAUTH_REDIRECT_URI must use https in production.');
+  }
+
+  // Users are only ever sent back to the frontend the gateway already trusts.
+  const [frontendOrigin] = parseCorsOrigins(frontendBaseUrl, env.NODE_ENV);
+
+  if (frontendOrigin === undefined || !corsOrigins.includes(frontendOrigin)) {
+    throw new Error(`FRONTEND_BASE_URL must be one of CORS_ORIGINS: "${frontendBaseUrl}".`);
+  }
+
+  return { clientId, redirectUri, frontendBaseUrl: frontendOrigin };
+}
+
 function validateCookieConfig(env: RawEnvironment): void {
   if (env.COOKIE_SAME_SITE === 'none' && !env.COOKIE_SECURE) {
     throw new Error('COOKIE_SAME_SITE=none requires COOKIE_SECURE=true.');
@@ -158,6 +207,8 @@ export function loadConfig(): AppConfig {
   });
 
   validateCookieConfig(env);
+
+  const corsOrigins = parseCorsOrigins(env.CORS_ORIGINS, env.NODE_ENV);
 
   return Object.freeze({
     nodeEnv: env.NODE_ENV,
@@ -180,7 +231,7 @@ export function loadConfig(): AppConfig {
     },
 
     cors: {
-      origins: parseCorsOrigins(env.CORS_ORIGINS, env.NODE_ENV),
+      origins: corsOrigins,
     },
 
     cookies: {
@@ -224,5 +275,7 @@ export function loadConfig(): AppConfig {
       jwksCacheTtlSeconds: env.AUTH_JWKS_CACHE_TTL_SECONDS,
       jwksRequestTimeoutMs: env.AUTH_JWKS_REQUEST_TIMEOUT_MS,
     },
+
+    googleOAuth: parseGoogleOAuthConfig(env, corsOrigins),
   });
 }
