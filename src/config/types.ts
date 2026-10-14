@@ -67,4 +67,12 @@ export interface AppConfig {
     host: string;
     port: number;
   };
+
+  googleOAuth?:
+    | {
+        clientId: string;
+        redirectUri: string;
+        frontendBaseUrl: string;
+      }
+    | undefined;
 }
