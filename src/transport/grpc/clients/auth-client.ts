@@ -189,4 +189,26 @@ export class AuthGrpcClient {
       throw toAppError(err);
     }
   }
+
+  async createKycUploadUrl(
+    params: Parameters<Client<typeof AuthService>['createKycUploadUrl']>[0],
+    timeoutMs = this.defaultTimeoutMs,
+  ) {
+    try {
+      return await this.client.createKycUploadUrl(params, { timeoutMs });
+    } catch (err) {
+      throw toAppError(err);
+    }
+  }
+
+  async submitKyc(
+    params: Parameters<Client<typeof AuthService>['submitKyc']>[0],
+    timeoutMs = this.defaultTimeoutMs,
+  ) {
+    try {
+      return await this.client.submitKyc(params, { timeoutMs });
+    } catch (err) {
+      throw toAppError(err);
+    }
+  }
 }
