@@ -1,8 +1,10 @@
 import type { TypeBoxTypeProvider } from '@fastify/type-provider-typebox';
 import type { FastifyInstance } from 'fastify';
 
-import { createKycUploadUrlHandler, submitKycHandler } from './handler.js';
+import { createKycNicOcrHandler, createKycUploadUrlHandler, submitKycHandler } from './handler.js';
 import {
+  kycNicOcrBodySchema,
+  kycNicOcrResponseSchema,
   kycSubmitBodySchema,
   kycSubmitResponseSchema,
   kycUploadUrlBodySchema,
@@ -11,6 +13,23 @@ import {
 
 export async function registerKycRoutes(app: FastifyInstance): Promise<void> {
   const router = app.withTypeProvider<TypeBoxTypeProvider>();
+
+  router.post(
+    '/api/v1/kyc/extract-nic-ocr',
+    {
+      config: {
+        rateLimit: 'auth-kyc-nic-ocr',
+        auth: 'required',
+      },
+      schema: {
+        body: kycNicOcrBodySchema,
+        response: {
+          200: kycNicOcrResponseSchema,
+        },
+      },
+    },
+    createKycNicOcrHandler,
+  );
 
   router.post(
     '/api/v1/kyc/upload-url',
