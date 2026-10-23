@@ -25,6 +25,7 @@ interface RawEnvironment {
   METRICS_HOST: string;
   METRICS_PORT: number;
   AUTH_SERVICE_GRPC_URL: string;
+  IOT_SERVICE_GRPC_URL: string;
   GRPC_DEFAULT_TIMEOUT_MS: number;
   GRPC_TLS_ENABLED: boolean;
   GRPC_TLS_CA_PATH?: string;
@@ -257,6 +258,7 @@ export function loadConfig(): AppConfig {
 
     grpc: {
       authServiceUrl: env.AUTH_SERVICE_GRPC_URL,
+      iotServiceUrl: env.IOT_SERVICE_GRPC_URL,
       defaultTimeoutMs: env.GRPC_DEFAULT_TIMEOUT_MS,
       tls: {
         enabled: env.GRPC_TLS_ENABLED,

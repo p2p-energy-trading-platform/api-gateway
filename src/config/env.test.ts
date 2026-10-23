@@ -41,6 +41,7 @@ const ALL_SCHEMA_KEYS = [
   'GOOGLE_CLIENT_ID',
   'GOOGLE_OAUTH_REDIRECT_URI',
   'FRONTEND_BASE_URL',
+  'IOT_SERVICE_GRPC_URL',
 ];
 
 let originalEnv: NodeJS.ProcessEnv;
@@ -66,6 +67,26 @@ function setEnv(overrides: Record<string, string | undefined>): void {
     }
   }
 }
+
+describe('loadConfig: IoT service', () => {
+  it('defaults the IoT gRPC URL to the in-cluster service', () => {
+    setEnv(REQUIRED_ENV);
+
+    expect(loadConfig().grpc.iotServiceUrl).toBe('http://iot-ingestion-dispatch:50051');
+  });
+
+  it('reads IOT_SERVICE_GRPC_URL', () => {
+    setEnv({ ...REQUIRED_ENV, IOT_SERVICE_GRPC_URL: 'http://localhost:50061' });
+
+    expect(loadConfig().grpc.iotServiceUrl).toBe('http://localhost:50061');
+  });
+
+  it('rejects an empty IOT_SERVICE_GRPC_URL', () => {
+    setEnv({ ...REQUIRED_ENV, IOT_SERVICE_GRPC_URL: '' });
+
+    expect(() => loadConfig()).toThrowError(/IOT_SERVICE_GRPC_URL/);
+  });
+});
 
 describe('loadConfig', () => {
   it('loads successfully with all required env vars present', () => {
