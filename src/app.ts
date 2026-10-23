@@ -19,6 +19,7 @@ import fastifyRequestContext from '@fastify/request-context';
 import grpcPlugin from './plugins/grpc.js';
 import { registerAuthRoutes } from './features/auth/routes.js';
 import { registerKycRoutes } from './features/kyc/routes.js';
+import { registerIotRoutes } from './features/iot/routes.js';
 import cookie from '@fastify/cookie';
 import csrf from './plugins/csrf.js';
 
@@ -129,6 +130,7 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
   await registerHealthRoutes(app);
   await registerAuthRoutes(app);
   await registerKycRoutes(app);
+  await registerIotRoutes(app);
 
   if (registerInfrastructure) {
     await registerWebsocketRoutes(app);
