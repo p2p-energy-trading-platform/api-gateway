@@ -17,13 +17,26 @@ export const kycUploadUrlResponseSchema = strictObject({
   expiresIn: Type.Number({ minimum: 1 }),
 });
 
+export const kycNicOcrBodySchema = strictObject({
+  objectKey: Type.String({ minLength: 1, maxLength: 512 }),
+});
+
+export const kycNicOcrResponseSchema = strictObject({
+  fullName: Type.String({ maxLength: 255 }),
+  dateOfBirth: Type.Union([Type.Literal(''), Type.String({ format: 'date' })]),
+  nicNumber: Type.String({ maxLength: 20 }),
+});
+
+export type KycNicOcrBody = Static<typeof kycNicOcrBodySchema>;
+export type KycNicOcrResponse = Static<typeof kycNicOcrResponseSchema>;
+
 export type KycUploadUrlBody = Static<typeof kycUploadUrlBodySchema>;
 export type KycUploadUrlResponse = Static<typeof kycUploadUrlResponseSchema>;
 
 export const kycSubmitBodySchema = strictObject({
   fullName: Type.String({ minLength: 1, maxLength: 255 }),
   dateOfBirth: Type.String({ format: 'date' }),
-  dubaiId: Type.String({ minLength: 1, maxLength: 100 }),
+  nicNumber: Type.String({ pattern: '^(?:\\d{12}|\\d{9}[VvXx])$', minLength: 10, maxLength: 12 }),
   documentPath: Type.String({ minLength: 1, maxLength: 512 }),
 });
 

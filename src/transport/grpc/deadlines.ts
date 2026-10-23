@@ -17,6 +17,7 @@ export const grpcDeadlinesMs = {
   authResetPassword: 3_000,
   authSubmitKyc: 5_000,
   authCreateKycUploadUrl: 3_000,
+  authKycNicOcr: 35_000,
   authLoginWithGoogle: 8_000,
 } as const;
 

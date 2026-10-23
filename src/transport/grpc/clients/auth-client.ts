@@ -201,6 +201,18 @@ export class AuthGrpcClient {
     }
   }
 
+  async extractKycNicOcr(
+    params: Parameters<Client<typeof AuthService>['extractKycNicOcr']>[0],
+    timeoutMs = this.defaultTimeoutMs,
+  ) {
+    try {
+      return await this.client.extractKycNicOcr(params, { timeoutMs });
+    } catch (err) {
+      // Do not log OCR output or identity fields.
+      throw toAppError(err);
+    }
+  }
+
   async submitKyc(
     params: Parameters<Client<typeof AuthService>['submitKyc']>[0],
     timeoutMs = this.defaultTimeoutMs,

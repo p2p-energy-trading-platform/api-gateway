@@ -22,6 +22,7 @@ import {
 } from '../helpers/fake-jwks.js';
 import { testConfig } from '../helpers/test-config.js';
 
+const OCR_URL = '/api/v1/kyc/extract-nic-ocr';
 const UPLOAD_URL = '/api/v1/kyc/upload-url';
 const SUBMIT_URL = '/api/v1/kyc';
 const USER_ID = 'kyc-user-1';
@@ -31,7 +32,7 @@ const VALID_UPLOAD_BODY = { contentType: 'image/jpeg', sizeBytes: 2048 };
 const VALID_SUBMIT_BODY = {
   fullName: 'Jane Doe',
   dateOfBirth: '1998-04-12',
-  dubaiId: '784-1998-1234567-1',
+  nicNumber: '199812345678',
   documentPath: OBJECT_KEY,
 };
 
@@ -40,7 +41,10 @@ interface ReceivedCall {
   request: Record<string, unknown>;
 }
 
-type KycImplementation = Pick<ServiceImpl<typeof AuthService>, 'createKycUploadUrl' | 'submitKyc'>;
+type KycImplementation = Pick<
+  ServiceImpl<typeof AuthService>,
+  'createKycUploadUrl' | 'extractKycNicOcr' | 'submitKyc'
+>;
 
 function submission(state: KycState = KycState.PENDING, rejectionReason = '') {
   return create(KycSubmissionSchema, {
@@ -48,7 +52,7 @@ function submission(state: KycState = KycState.PENDING, rejectionReason = '') {
     userId: USER_ID,
     fullName: VALID_SUBMIT_BODY.fullName,
     dateOfBirth: { year: 1998, month: 4, day: 12 },
-    dubaiId: VALID_SUBMIT_BODY.dubaiId,
+    nicNumber: VALID_SUBMIT_BODY.nicNumber,
     documentPath: OBJECT_KEY,
     state,
     rejectionReason,
@@ -71,6 +75,22 @@ describe('KYC routes', () => {
     received = [];
     jwks = await startFakeJwks();
     fake = await startFakeAuthService({
+      extractKycNicOcr: async (req, context) => {
+        received.push({
+          userId: context.requestHeader.get('x-gridx-user-id'),
+          request: { objectKey: req.objectKey },
+        });
+
+        if (implementation.extractKycNicOcr) {
+          return implementation.extractKycNicOcr(req, context);
+        }
+
+        return {
+          fullName: 'Jane Doe',
+          dateOfBirth: { year: 1998, month: 4, day: 12 },
+          nicNumber: '199812345678',
+        };
+      },
       createKycUploadUrl: async (req, context) => {
         received.push({
           userId: context.requestHeader.get('x-gridx-user-id'),
@@ -99,7 +119,7 @@ describe('KYC routes', () => {
                   day: req.dateOfBirth.day,
                 }
               : undefined,
-            dubaiId: req.dubaiId,
+            nicNumber: req.nicNumber,
             documentPath: req.documentPath,
           },
         });
@@ -146,6 +166,80 @@ describe('KYC routes', () => {
     app = undefined;
     fake = undefined;
     jwks = undefined;
+  });
+
+  describe('POST /api/v1/kyc/extract-nic-ocr', () => {
+    it('returns OCR suggestions for the authenticated user document', async () => {
+      const instance = await setup();
+
+      const response = await instance.inject({
+        method: 'POST',
+        url: OCR_URL,
+        headers: await authHeaders(),
+        payload: { objectKey: OBJECT_KEY },
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.json()).toEqual({
+        fullName: 'Jane Doe',
+        dateOfBirth: '1998-04-12',
+        nicNumber: '199812345678',
+      });
+      expect(received).toEqual([{ userId: USER_ID, request: { objectKey: OBJECT_KEY } }]);
+    });
+
+    it('returns 401 without an access token', async () => {
+      const instance = await setup();
+
+      const response = await instance.inject({
+        method: 'POST',
+        url: OCR_URL,
+        payload: { objectKey: OBJECT_KEY },
+      });
+
+      expect(response.statusCode).toBe(401);
+      expect(received).toHaveLength(0);
+    });
+
+    it.each([
+      ['day beyond the end of February', { year: 1998, month: 2, day: 31 }],
+      ['29 February in a non-leap year', { year: 2023, month: 2, day: 29 }],
+      ['month outside the calendar', { year: 1998, month: 13, day: 1 }],
+      ['day zero', { year: 1998, month: 4, day: 0 }],
+    ])('returns an empty date for OCR output with %s', async (_case, dateOfBirth) => {
+      const instance = await setup({
+        extractKycNicOcr: () => ({
+          fullName: 'Jane Doe',
+          dateOfBirth,
+          nicNumber: '199812345678',
+        }),
+      });
+
+      const response = await instance.inject({
+        method: 'POST',
+        url: OCR_URL,
+        headers: await authHeaders(),
+        payload: { objectKey: OBJECT_KEY },
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.json().dateOfBirth).toBe('');
+    });
+
+    it('returns 400 for an invalid body without calling auth-service', async () => {
+      const instance = await setup();
+
+      const response = await instance.inject({
+        method: 'POST',
+        url: OCR_URL,
+        headers: await authHeaders(),
+        payload: { objectKey: OBJECT_KEY, userId: 'someone-else' },
+      });
+
+      expect(response.statusCode).toBe(400);
+      expect(response.json().error.code).toBe('VALIDATION_ERROR');
+      expect(received).toHaveLength(0);
+    });
   });
 
   describe('POST /api/v1/kyc/upload-url', () => {
@@ -247,7 +341,7 @@ describe('KYC routes', () => {
           request: {
             fullName: 'Jane Doe',
             dateOfBirth: { year: 1998, month: 4, day: 12 },
-            dubaiId: '784-1998-1234567-1',
+            nicNumber: '199812345678',
             documentPath: OBJECT_KEY,
           },
         },
