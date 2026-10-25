@@ -19,6 +19,11 @@ export const grpcDeadlinesMs = {
   authCreateKycUploadUrl: 3_000,
   authKycNicOcr: 35_000,
   authLoginWithGoogle: 8_000,
+  iotListHouses: 3_000,
+  iotGetHouse: 3_000,
+  iotGetLatestReading: 3_000,
+  iotGetEnergySeries: 8_000,
+  iotGetEnergySummary: 8_000,
 } as const;
 
 export function getTimeoutOptions(timeoutMs: number = DEFAULT_GRPC_TIMEOUT_MS) {

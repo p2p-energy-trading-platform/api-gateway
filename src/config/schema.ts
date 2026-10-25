@@ -118,6 +118,12 @@ export const envSchema = {
       default: 'http://auth-service:50051',
     },
 
+    IOT_SERVICE_GRPC_URL: {
+      type: 'string',
+      minLength: 1,
+      default: 'http://iot-ingestion-dispatch:50051',
+    },
+
     AUTH_ISSUER: {
       type: 'string',
       minLength: 1,

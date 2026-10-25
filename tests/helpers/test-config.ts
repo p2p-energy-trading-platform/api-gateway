@@ -46,6 +46,7 @@ export const testConfig: AppConfig = {
 
   grpc: {
     authServiceUrl: 'http://auth-service:50051',
+    iotServiceUrl: 'http://iot-ingestion-dispatch:50051',
     defaultTimeoutMs: 5000,
     tls: {
       enabled: false,
