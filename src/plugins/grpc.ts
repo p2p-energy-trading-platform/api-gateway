@@ -4,9 +4,11 @@ import { createGrpcTransport } from '@connectrpc/connect-node';
 import { createTlsClientOptions } from '../transport/grpc/credentials.js';
 import { createHeaderPropagationInterceptor } from '../transport/grpc/metadata.js';
 import { AuthGrpcClient } from '../transport/grpc/clients/auth-client.js';
+import { RegistrationGrpcClient } from '../transport/grpc/clients/registration-client.js';
 
 export interface GrpcClients {
   auth: AuthGrpcClient;
+  registration: RegistrationGrpcClient;
 }
 
 const grpcPlugin: FastifyPluginAsync = fp(async (fastify) => {
@@ -23,8 +25,19 @@ const grpcPlugin: FastifyPluginAsync = fp(async (fastify) => {
     ],
   });
 
+  const registraionTransport = createGrpcTransport({
+    baseUrl: fastify.config.grpc.iotIngestionDispatchServiceUrl,
+    ...(tlsOptions ? { nodeOptions: tlsOptions } : {}),
+    interceptors: [
+      createHeaderPropagationInterceptor(() => {
+        return fastify.requestContext?.get?.('tracing');
+      }),
+    ],
+  });
+
   fastify.decorate('grpcClients', {
     auth: new AuthGrpcClient(authTransport),
+    registration: new RegistrationGrpcClient(registraionTransport),
   });
 });
 
