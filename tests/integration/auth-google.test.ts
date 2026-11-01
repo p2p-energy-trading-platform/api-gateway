@@ -234,13 +234,25 @@ describe('Google sign-in', () => {
       ]);
     });
 
-    it('sends a new user to sign-up to continue onboarding', async () => {
+    it('sends a new user to their requested destination', async () => {
       const instance = await setup({ isNewUser: true });
       const { state, stateCookie } = await startSignIn(instance, '/trade');
 
       const response = await callback(instance, { code: 'auth-code', state }, stateCookie?.value);
 
-      expect(response.headers.location).toBe(`${FRONTEND}/sign-up?step=kyc`);
+      expect(response.headers.location).toBe(`${FRONTEND}/trade`);
+      expect(sessionCookieNames(response)).toEqual(
+        expect.arrayContaining(['gridx_access', 'gridx_refresh']),
+      );
+    });
+
+    it('sends a new user to the dashboard when no destination was requested', async () => {
+      const instance = await setup({ isNewUser: true });
+      const { state, stateCookie } = await startSignIn(instance);
+
+      const response = await callback(instance, { code: 'auth-code', state }, stateCookie?.value);
+
+      expect(response.headers.location).toBe(`${FRONTEND}/dashboard`);
     });
 
     it('clears the state cookie', async () => {

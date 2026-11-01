@@ -16,7 +16,6 @@ const GOOGLE_SCOPES = 'openid email profile';
 const STATE_COOKIE_PATH = '/api/v1/auth/google';
 const STATE_TTL_SECONDS = 600;
 const DEFAULT_RETURN_TO = '/dashboard';
-const NEW_USER_RETURN_TO = '/sign-up?step=kyc';
 const FAILURE_PATH = '/sign-in?error=google';
 
 export const googleStartQuerySchema = Type.Object({
@@ -212,8 +211,8 @@ export async function googleCallbackHandler(
       expiresIn: Number(result.expiresIn),
     });
 
-    // New users continue onboarding (KYC); returning users go where they started.
-    const destination = result.isNewUser ? NEW_USER_RETURN_TO : pending.returnTo;
+    // New and returning users go to the validated destination requested at sign-in.
+    const destination = pending.returnTo;
 
     return reply.redirect(`${google.frontendBaseUrl}${destination}`);
   } catch (err) {
