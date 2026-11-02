@@ -212,9 +212,7 @@ export async function googleCallbackHandler(
     });
 
     // New Google users must complete the shared onboarding flow.
-    const destination = result.isNewUser
-      ? '/sign-up?step=kyc'
-      : pending.returnTo;
+    const destination = result.isNewUser ? '/sign-up?step=kyc' : pending.returnTo;
 
     return reply.redirect(`${google.frontendBaseUrl}${destination}`);
   } catch (err) {
