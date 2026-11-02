@@ -211,8 +211,10 @@ export async function googleCallbackHandler(
       expiresIn: Number(result.expiresIn),
     });
 
-    // New and returning users go to the validated destination requested at sign-in.
-    const destination = pending.returnTo;
+    // New Google users must complete the shared onboarding flow.
+    const destination = result.isNewUser
+      ? '/sign-up?step=kyc'
+      : pending.returnTo;
 
     return reply.redirect(`${google.frontendBaseUrl}${destination}`);
   } catch (err) {
