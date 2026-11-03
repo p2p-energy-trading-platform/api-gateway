@@ -24,6 +24,7 @@ export const grpcDeadlinesMs = {
   iotGetLatestReading: 3_000,
   iotGetEnergySeries: 8_000,
   iotGetEnergySummary: 8_000,
+  walletGetWallet: 3_000,
 } as const;
 
 export function getTimeoutOptions(timeoutMs: number = DEFAULT_GRPC_TIMEOUT_MS) {
