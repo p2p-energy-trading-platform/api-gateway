@@ -42,6 +42,7 @@ const ALL_SCHEMA_KEYS = [
   'GOOGLE_OAUTH_REDIRECT_URI',
   'FRONTEND_BASE_URL',
   'IOT_SERVICE_GRPC_URL',
+  'BILLING_SERVICE_GRPC_URL',
 ];
 
 let originalEnv: NodeJS.ProcessEnv;
@@ -67,6 +68,26 @@ function setEnv(overrides: Record<string, string | undefined>): void {
     }
   }
 }
+
+describe('loadConfig: billing service', () => {
+  it('defaults the billing gRPC URL to the in-cluster service', () => {
+    setEnv({ ...REQUIRED_ENV });
+
+    expect(loadConfig().grpc.billingServiceUrl).toBe('http://billing-wallet-service:50051');
+  });
+
+  it('reads BILLING_SERVICE_GRPC_URL', () => {
+    setEnv({ ...REQUIRED_ENV, BILLING_SERVICE_GRPC_URL: 'http://localhost:50062' });
+
+    expect(loadConfig().grpc.billingServiceUrl).toBe('http://localhost:50062');
+  });
+
+  it('rejects an empty BILLING_SERVICE_GRPC_URL', () => {
+    setEnv({ ...REQUIRED_ENV, BILLING_SERVICE_GRPC_URL: '' });
+
+    expect(() => loadConfig()).toThrowError(/BILLING_SERVICE_GRPC_URL/);
+  });
+});
 
 describe('loadConfig: IoT service', () => {
   it('defaults the IoT gRPC URL to the in-cluster service', () => {

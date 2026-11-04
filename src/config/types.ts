@@ -45,6 +45,7 @@ export interface AppConfig {
   grpc: {
     authServiceUrl: string;
     iotServiceUrl: string;
+    billingServiceUrl: string;
     defaultTimeoutMs: number;
     tls: {
       enabled: boolean;
