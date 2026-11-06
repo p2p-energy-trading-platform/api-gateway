@@ -14,7 +14,6 @@ import {
     mapReverifyRegistrationResponse,
 }from './mapper.js';
 
-import { registrationClient } from '../../transport/grpc/clients/registration-client.js';
 
 
 //POST: Initiate meter claim
@@ -32,7 +31,7 @@ export async function initiateMeterClaimHandler(
     const grpcRequest = mapInitiateMeterClaimRequest(body);
 
     // Call gRPC client here
-    const grpcResponse = await registrationClient.initiateMeterClaim(grpcRequest);
+    const grpcResponse = await request.server.grpcClients.registration.initiateMeterClaim(grpcRequest);
 
     // gRPC Response → HTTP Response
     const response = mapInitiateMeterClaimResponse(grpcResponse);
@@ -56,7 +55,7 @@ export async function getRegistrationStatusHandler(
     const grpcRequest = mapGetRegistrationStatusRequest(params);
 
     // Call gRPC client here
-    const grpcResponse = await registrationClient.getRegistrationStatus(grpcRequest);
+    const grpcResponse = await request.server.grpcClients.registration.getRegistrationStatus(grpcRequest);
 
     // gRPC Response → HTTP Response
     const response = mapGetRegistrationStatusResponse(grpcResponse); 
@@ -82,7 +81,7 @@ export async function validateDeviceAssociationHandler(
 
 
     // Call gRPC client here
-    const grpcResponse = await registrationClient.validateDeviceAssociation(grpcRequest);
+    const grpcResponse = await request.server.grpcClients.registration.validateDeviceAssociation(grpcRequest);
 
     // gRPC Response → HTTP Response
     const response = mapValidateDeviceAssociationResponse(grpcResponse);
@@ -108,7 +107,7 @@ export async function reverifyRegistrationHandler(
     const grpcRequest = mapReverifyRegistrationRequest(body);
 
     // Call gRPC client here
-    const grpcResponse = await registrationClient.reverifyRegistration(grpcRequest);
+    const grpcResponse = await request.server.grpcClients.registration.reverifyRegistration(grpcRequest);
 
     // gRPC Response → HTTP Response
     const response = mapReverifyRegistrationResponse(grpcResponse);

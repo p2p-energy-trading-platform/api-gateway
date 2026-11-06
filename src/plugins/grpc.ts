@@ -30,7 +30,7 @@ const grpcPlugin: FastifyPluginAsync = fp(async (fastify) => {
   });
 
   const registraionTransport = createGrpcTransport({
-    baseUrl: fastify.config.grpc.iotIngestionDispatchServiceUrl,
+    baseUrl: fastify.config.grpc.iotServiceUrl,
     ...(tlsOptions ? { nodeOptions: tlsOptions } : {}),
     interceptors: [
       createHeaderPropagationInterceptor(() => {
