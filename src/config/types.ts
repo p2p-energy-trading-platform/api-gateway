@@ -1,5 +1,6 @@
 export type NodeEnvironment = 'development' | 'test' | 'production';
 export type TrustProxy = false | string[];
+export type CookieSameSite = 'lax' | 'strict' | 'none';
 
 export interface AppConfig {
   nodeEnv: NodeEnvironment;
@@ -25,6 +26,13 @@ export interface AppConfig {
     origins: string[];
   };
 
+  cookies: {
+    secure: boolean;
+    sameSite: CookieSameSite;
+    domain?: string | undefined;
+    refreshMaxAgeSeconds: number;
+  };
+
   redis: {
     url: string;
     connectTimeoutMs: number;
@@ -36,6 +44,8 @@ export interface AppConfig {
 
   grpc: {
     authServiceUrl: string;
+    iotServiceUrl: string;
+    billingServiceUrl: string;
     defaultTimeoutMs: number;
     tls: {
       enabled: boolean;
@@ -59,4 +69,12 @@ export interface AppConfig {
     host: string;
     port: number;
   };
+
+  googleOAuth?:
+    | {
+        clientId: string;
+        redirectUri: string;
+        frontendBaseUrl: string;
+      }
+    | undefined;
 }

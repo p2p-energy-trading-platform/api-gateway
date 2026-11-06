@@ -2,6 +2,29 @@ export const DEFAULT_GRPC_TIMEOUT_MS = 5000;
 
 export const grpcDeadlinesMs = {
   authRegister: 3_000,
+  authVerifyEmail: 3_000,
+  authResendOtp: 3_000,
+  authLogin: 3_000,
+  authRefresh: 3_000,
+  authLogout: 3_000,
+  authGetUser: 3_000,
+  authGetProfile: 3_000,
+  authUpdateProfile: 3_000,
+  authChangePassword: 3_000,
+  authRequestEmailChange: 3_000,
+  authVerifyEmailChange: 3_000,
+  authPasswordReset: 3_000,
+  authResetPassword: 3_000,
+  authSubmitKyc: 5_000,
+  authCreateKycUploadUrl: 3_000,
+  authKycNicOcr: 35_000,
+  authLoginWithGoogle: 8_000,
+  iotListHouses: 3_000,
+  iotGetHouse: 3_000,
+  iotGetLatestReading: 3_000,
+  iotGetEnergySeries: 8_000,
+  iotGetEnergySummary: 8_000,
+  walletGetWallet: 3_000,
 } as const;
 
 export function getTimeoutOptions(timeoutMs: number = DEFAULT_GRPC_TIMEOUT_MS) {

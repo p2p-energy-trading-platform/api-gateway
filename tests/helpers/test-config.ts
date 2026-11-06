@@ -24,6 +24,12 @@ export const testConfig: AppConfig = {
     origins: ['http://localhost:5173'],
   },
 
+  cookies: {
+    secure: true,
+    sameSite: 'lax',
+    refreshMaxAgeSeconds: 2_592_000,
+  },
+
   redis: {
     url: 'redis://localhost:6379',
     connectTimeoutMs: 2_000,
@@ -40,6 +46,8 @@ export const testConfig: AppConfig = {
 
   grpc: {
     authServiceUrl: 'http://auth-service:50051',
+    iotServiceUrl: 'http://iot-ingestion-dispatch:50051',
+    billingServiceUrl: 'http://billing-wallet-service:50051',
     defaultTimeoutMs: 5000,
     tls: {
       enabled: false,

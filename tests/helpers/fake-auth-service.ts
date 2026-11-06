@@ -21,6 +21,12 @@ export async function startFakeAuthService(
   const server = http2.createServer(
     connectNodeAdapter({ routes: (router) => router.service(AuthService, implementation) }),
   );
+  const sessions = new Set<http2.ServerHttp2Session>();
+
+  server.on('session', (session) => {
+    sessions.add(session);
+    session.once('close', () => sessions.delete(session));
+  });
 
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
 
@@ -31,6 +37,10 @@ export async function startFakeAuthService(
     close: () =>
       new Promise<void>((resolve) => {
         server.close(() => resolve());
+
+        for (const session of sessions) {
+          session.destroy();
+        }
       }),
   };
 }

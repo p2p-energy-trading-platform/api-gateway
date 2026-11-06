@@ -56,6 +56,28 @@ export const envSchema = {
       default: 'http://localhost:5173',
     },
 
+    COOKIE_SECURE: {
+      type: 'boolean',
+      default: true,
+    },
+
+    COOKIE_SAME_SITE: {
+      type: 'string',
+      enum: ['lax', 'strict', 'none'],
+      default: 'lax',
+    },
+
+    COOKIE_DOMAIN: {
+      type: 'string',
+      minLength: 1,
+    },
+
+    REFRESH_COOKIE_MAX_AGE_SECONDS: {
+      type: 'integer',
+      minimum: 1,
+      default: 2592000,
+    },
+
     REDIS_URL: {
       type: 'string',
       pattern: '^rediss?://.+',
@@ -94,6 +116,18 @@ export const envSchema = {
       type: 'string',
       minLength: 1,
       default: 'http://auth-service:50051',
+    },
+
+    IOT_SERVICE_GRPC_URL: {
+      type: 'string',
+      minLength: 1,
+      default: 'http://iot-ingestion-dispatch:50051',
+    },
+
+    BILLING_SERVICE_GRPC_URL: {
+      type: 'string',
+      minLength: 1,
+      default: 'http://billing-wallet-service:50051',
     },
 
     AUTH_ISSUER: {
@@ -158,6 +192,18 @@ export const envSchema = {
     },
 
     GRPC_TLS_KEY_PATH: {
+      type: 'string',
+    },
+
+    GOOGLE_CLIENT_ID: {
+      type: 'string',
+    },
+
+    GOOGLE_OAUTH_REDIRECT_URI: {
+      type: 'string',
+    },
+
+    FRONTEND_BASE_URL: {
       type: 'string',
     },
   },

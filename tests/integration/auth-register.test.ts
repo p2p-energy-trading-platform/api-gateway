@@ -7,12 +7,20 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { buildApp } from '../../src/app.js';
 import { startFakeAuthService, type FakeAuthService } from '../helpers/fake-auth-service.js';
 import { testConfig } from '../helpers/test-config.js';
+import { timestampFromDate } from '@bufbuild/protobuf/wkt';
 
 const URL = '/api/v1/auth/register';
-const VALID_BODY = { email: 'new@example.com', password: 'a-long-password' };
+const ALLOWED_ORIGIN = 'http://localhost:5173';
+const UNKNOWN_ORIGIN = 'https://evil.example.com';
+const VALID_BODY = { name: 'New User', email: 'new@example.com', password: 'a-long-password' };
 
 function registerSucceeds(email: string) {
-  return { userId: 'user-1', email, status: 'active', createdAt: '2026-10-06T10:00:00Z' };
+  return {
+    userId: 'user-1',
+    email,
+    status: 'active',
+    createdAtTime: timestampFromDate(new Date('2026-10-06T10:00:00Z')),
+  };
 }
 
 function registerFails(message: string, code: Code) {
@@ -28,14 +36,14 @@ function registerFails(message: string, code: Code) {
 describe('POST /api/v1/auth/register', () => {
   let app: FastifyInstance | undefined;
   let fake: FakeAuthService | undefined;
-  let received: { email: string; password: string }[] = [];
+  let received: { name: string; email: string; password: string }[] = [];
 
   async function setup(register: (email: string) => unknown) {
     received = [];
 
     fake = await startFakeAuthService({
       register: async (req) => {
-        received.push({ email: req.email, password: req.password });
+        received.push({ name: req.name, email: req.email, password: req.password });
 
         return register(req.email) as never;
       },
@@ -71,8 +79,21 @@ describe('POST /api/v1/auth/register', () => {
       userId: 'user-1',
       email: 'new@example.com',
       status: 'active',
-      createdAt: '2026-10-06T10:00:00Z',
+      createdAt: '2026-10-06T10:00:00.000Z',
     });
+    expect(received).toEqual([VALID_BODY]);
+  });
+
+  it('trims the name before calling auth-service', async () => {
+    const instance = await setup(registerSucceeds);
+
+    const response = await instance.inject({
+      method: 'POST',
+      url: URL,
+      payload: { ...VALID_BODY, name: '  New User  ' },
+    });
+
+    expect(response.statusCode).toBe(201);
     expect(received).toEqual([VALID_BODY]);
   });
 
@@ -139,10 +160,14 @@ describe('POST /api/v1/auth/register', () => {
   });
 
   it.each([
-    ['a missing password', { email: 'new@example.com' }],
-    ['an invalid email', { email: 'not-an-email', password: 'a-long-password' }],
-    ['a 7-character password', { email: 'new@example.com', password: 'short12' }],
-    ['a 129-character password', { email: 'new@example.com', password: 'x'.repeat(129) }],
+    ['a missing name', { email: 'new@example.com', password: 'a-long-password' }],
+    ['an empty name', { ...VALID_BODY, name: '' }],
+    ['a whitespace-only name', { ...VALID_BODY, name: '   ' }],
+    ['a 101-character name', { ...VALID_BODY, name: 'x'.repeat(101) }],
+    ['a missing password', { name: 'New User', email: 'new@example.com' }],
+    ['an invalid email', { ...VALID_BODY, email: 'not-an-email' }],
+    ['a 7-character password', { ...VALID_BODY, password: 'short12' }],
+    ['a 129-character password', { ...VALID_BODY, password: 'x'.repeat(129) }],
     ['an unknown field', { ...VALID_BODY, role: 'admin' }],
   ])('returns 400 for %s without calling auth-service', async (_name, payload) => {
     const instance = await setup(registerSucceeds);
@@ -159,10 +184,53 @@ describe('POST /api/v1/auth/register', () => {
     const codes: number[] = [];
 
     for (let i = 0; i < 6; i += 1) {
-      const response = await instance.inject({ method: 'POST', url: URL, payload: VALID_BODY });
+      const response = await instance.inject({
+        method: 'POST',
+        url: URL,
+        payload: VALID_BODY,
+        headers: { origin: ALLOWED_ORIGIN },
+      });
       codes.push(response.statusCode);
+
+      if (i === 5) {
+        expect(response.headers['access-control-expose-headers']).toContain('Retry-After');
+      }
     }
 
     expect(codes).toEqual([201, 201, 201, 201, 201, 429]);
+  });
+
+  it('allows credentialed register preflight requests from a configured origin', async () => {
+    const instance = await setup(registerSucceeds);
+
+    const response = await instance.inject({
+      method: 'OPTIONS',
+      url: URL,
+      headers: {
+        origin: ALLOWED_ORIGIN,
+        'access-control-request-method': 'POST',
+        'access-control-request-headers': 'content-type',
+      },
+    });
+
+    expect(response.statusCode).toBe(204);
+    expect(response.headers['access-control-allow-origin']).toBe(ALLOWED_ORIGIN);
+    expect(response.headers['access-control-allow-credentials']).toBe('true');
+  });
+
+  it('does not allow register requests from an unknown origin', async () => {
+    const instance = await setup(registerSucceeds);
+
+    const response = await instance.inject({
+      method: 'OPTIONS',
+      url: URL,
+      headers: {
+        origin: UNKNOWN_ORIGIN,
+        'access-control-request-method': 'POST',
+        'access-control-request-headers': 'content-type',
+      },
+    });
+
+    expect(response.headers['access-control-allow-origin']).toBeUndefined();
   });
 });

@@ -21,6 +21,10 @@ const ALL_SCHEMA_KEYS = [
   'BODY_LIMIT_BYTES',
   'REQUEST_TIMEOUT_MS',
   'CORS_ORIGINS',
+  'COOKIE_SECURE',
+  'COOKIE_SAME_SITE',
+  'COOKIE_DOMAIN',
+  'REFRESH_COOKIE_MAX_AGE_SECONDS',
   'REDIS_URL',
   'REDIS_CONNECT_TIMEOUT_MS',
   'TRUST_PROXY',
@@ -34,6 +38,11 @@ const ALL_SCHEMA_KEYS = [
   'AUTH_CLOCK_TOLERANCE_SECONDS',
   'AUTH_JWKS_CACHE_TTL_SECONDS',
   'AUTH_JWKS_REQUEST_TIMEOUT_MS',
+  'GOOGLE_CLIENT_ID',
+  'GOOGLE_OAUTH_REDIRECT_URI',
+  'FRONTEND_BASE_URL',
+  'IOT_SERVICE_GRPC_URL',
+  'BILLING_SERVICE_GRPC_URL',
 ];
 
 let originalEnv: NodeJS.ProcessEnv;
@@ -60,6 +69,46 @@ function setEnv(overrides: Record<string, string | undefined>): void {
   }
 }
 
+describe('loadConfig: billing service', () => {
+  it('defaults the billing gRPC URL to the in-cluster service', () => {
+    setEnv({ ...REQUIRED_ENV });
+
+    expect(loadConfig().grpc.billingServiceUrl).toBe('http://billing-wallet-service:50051');
+  });
+
+  it('reads BILLING_SERVICE_GRPC_URL', () => {
+    setEnv({ ...REQUIRED_ENV, BILLING_SERVICE_GRPC_URL: 'http://localhost:50062' });
+
+    expect(loadConfig().grpc.billingServiceUrl).toBe('http://localhost:50062');
+  });
+
+  it('rejects an empty BILLING_SERVICE_GRPC_URL', () => {
+    setEnv({ ...REQUIRED_ENV, BILLING_SERVICE_GRPC_URL: '' });
+
+    expect(() => loadConfig()).toThrowError(/BILLING_SERVICE_GRPC_URL/);
+  });
+});
+
+describe('loadConfig: IoT service', () => {
+  it('defaults the IoT gRPC URL to the in-cluster service', () => {
+    setEnv(REQUIRED_ENV);
+
+    expect(loadConfig().grpc.iotServiceUrl).toBe('http://iot-ingestion-dispatch:50051');
+  });
+
+  it('reads IOT_SERVICE_GRPC_URL', () => {
+    setEnv({ ...REQUIRED_ENV, IOT_SERVICE_GRPC_URL: 'http://localhost:50061' });
+
+    expect(loadConfig().grpc.iotServiceUrl).toBe('http://localhost:50061');
+  });
+
+  it('rejects an empty IOT_SERVICE_GRPC_URL', () => {
+    setEnv({ ...REQUIRED_ENV, IOT_SERVICE_GRPC_URL: '' });
+
+    expect(() => loadConfig()).toThrowError(/IOT_SERVICE_GRPC_URL/);
+  });
+});
+
 describe('loadConfig', () => {
   it('loads successfully with all required env vars present', () => {
     setEnv(REQUIRED_ENV);
@@ -80,6 +129,28 @@ describe('loadConfig', () => {
     expect(config.http.host).toBe('0.0.0.0');
     expect(config.logging.level).toBe('info');
     expect(config.cors.origins).toEqual(['http://localhost:5173']);
+    expect(config.cookies).toEqual({
+      secure: true,
+      sameSite: 'lax',
+      refreshMaxAgeSeconds: 2_592_000,
+    });
+  });
+
+  it('rejects insecure cookies in production', () => {
+    setEnv({
+      ...REQUIRED_ENV,
+      NODE_ENV: 'production',
+      CORS_ORIGINS: 'https://app.gridx.io',
+      COOKIE_SECURE: 'false',
+    });
+
+    expect(() => loadConfig()).toThrowError(/COOKIE_SECURE/);
+  });
+
+  it('rejects SameSite none without secure cookies', () => {
+    setEnv({ ...REQUIRED_ENV, COOKIE_SECURE: 'false', COOKIE_SAME_SITE: 'none' });
+
+    expect(() => loadConfig()).toThrowError(/COOKIE_SAME_SITE/);
   });
 
   it('throws a clear error when a required env var is missing', () => {
@@ -265,5 +336,55 @@ describe('parseAllowedAlgorithms', () => {
 
   it.each(['EDDSA', 'HS256', 'none', ''])('rejects "%s"', (raw) => {
     expect(() => parseAllowedAlgorithms(raw)).toThrowError(/AUTH_ALLOWED_ALGORITHMS/);
+  });
+});
+
+describe('Google sign-in config', () => {
+  const GOOGLE_ENV = {
+    GOOGLE_CLIENT_ID: 'client-id.apps.googleusercontent.com',
+    GOOGLE_OAUTH_REDIRECT_URI: 'http://localhost:8000/api/v1/auth/google/callback',
+    FRONTEND_BASE_URL: 'http://localhost:3000',
+    CORS_ORIGINS: 'http://localhost:3000',
+  };
+
+  it('is disabled when none of the Google settings are set', () => {
+    setEnv(REQUIRED_ENV);
+
+    expect(loadConfig().googleOAuth).toBeUndefined();
+  });
+
+  it('loads when all Google settings are set', () => {
+    setEnv({ ...REQUIRED_ENV, ...GOOGLE_ENV });
+
+    expect(loadConfig().googleOAuth).toEqual({
+      clientId: 'client-id.apps.googleusercontent.com',
+      redirectUri: 'http://localhost:8000/api/v1/auth/google/callback',
+      frontendBaseUrl: 'http://localhost:3000',
+    });
+  });
+
+  it.each(['GOOGLE_CLIENT_ID', 'GOOGLE_OAUTH_REDIRECT_URI', 'FRONTEND_BASE_URL'])(
+    'requires all Google settings together (missing %s)',
+    (missing) => {
+      setEnv({ ...REQUIRED_ENV, ...GOOGLE_ENV, [missing]: undefined });
+
+      expect(() => loadConfig()).toThrowError(/must be set together/);
+    },
+  );
+
+  it('rejects a redirect URI that is not the gateway callback', () => {
+    setEnv({
+      ...REQUIRED_ENV,
+      ...GOOGLE_ENV,
+      GOOGLE_OAUTH_REDIRECT_URI: 'http://localhost:8000/somewhere-else',
+    });
+
+    expect(() => loadConfig()).toThrowError(/api\/v1\/auth\/google\/callback/);
+  });
+
+  it('rejects a frontend URL that is not a trusted CORS origin', () => {
+    setEnv({ ...REQUIRED_ENV, ...GOOGLE_ENV, FRONTEND_BASE_URL: 'https://evil.example.com' });
+
+    expect(() => loadConfig()).toThrowError(/FRONTEND_BASE_URL must be one of CORS_ORIGINS/);
   });
 });

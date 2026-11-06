@@ -8,6 +8,8 @@ import { registerErrorHandler } from './errors/error-handler.js';
 import { registerHealthRoutes } from './health/routes.js';
 import { createLoggerOptions } from './observability/logging.js';
 import authenticationPlugin from './plugins/authentication.js';
+import websocketPlugin from './plugins/websocket.js';
+import { registerWebsocketRoutes } from './features/websocket/routes.js';
 import observabilityPlugin from './plugins/observability.js';
 import rateLimitPlugin from './plugins/rate-limit.js';
 import redisPlugin from './plugins/redis.js';
@@ -16,6 +18,11 @@ import { registerCors } from './plugins/cors.js';
 import fastifyRequestContext from '@fastify/request-context';
 import grpcPlugin from './plugins/grpc.js';
 import { registerAuthRoutes } from './features/auth/routes.js';
+import { registerKycRoutes } from './features/kyc/routes.js';
+import { registerIotRoutes } from './features/iot/routes.js';
+import { registerWalletRoutes } from './features/wallet/routes.js';
+import cookie from '@fastify/cookie';
+import csrf from './plugins/csrf.js';
 
 const REQUEST_ID_PATTERN = /^[A-Za-z0-9._:-]{1,128}$/;
 
@@ -94,6 +101,7 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
    */
   await registerSecurity(app, config);
   await registerCors(app, config);
+  await app.register(cookie);
 
   if (registerInfrastructure) {
     await app.register(redisPlugin, {
@@ -104,7 +112,13 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
       config,
     });
 
+    await app.register(csrf, { config });
+
     await app.register(authenticationPlugin, {
+      config,
+    });
+
+    await app.register(websocketPlugin, {
       config,
     });
 
@@ -116,6 +130,13 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
    */
   await registerHealthRoutes(app);
   await registerAuthRoutes(app);
+  await registerKycRoutes(app);
+  await registerIotRoutes(app);
+  await registerWalletRoutes(app);
+
+  if (registerInfrastructure) {
+    await registerWebsocketRoutes(app);
+  }
 
   return app;
 }
