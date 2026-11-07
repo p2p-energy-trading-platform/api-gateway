@@ -24,6 +24,10 @@ export const grpcDeadlinesMs = {
   iotGetLatestReading: 3_000,
   iotGetEnergySeries: 8_000,
   iotGetEnergySummary: 8_000,
+  registrationInitiateMeterClaim: 5_000,
+  registrationGetStatus: 3_000,
+  registrationValidateAssociation: 3_000,
+  registrationReverify: 5_000,
   walletGetWallet: 3_000,
 } as const;
 

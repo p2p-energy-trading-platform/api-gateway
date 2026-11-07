@@ -4,11 +4,13 @@ import { createGrpcTransport } from '@connectrpc/connect-node';
 import { createTlsClientOptions } from '../transport/grpc/credentials.js';
 import { createHeaderPropagationInterceptor } from '../transport/grpc/metadata.js';
 import { AuthGrpcClient } from '../transport/grpc/clients/auth-client.js';
+import { RegistrationGrpcClient } from '../transport/grpc/clients/registration-client.js';
 import { IotGrpcClient } from '../transport/grpc/clients/iot-client.js';
 import { WalletGrpcClient } from '../transport/grpc/clients/wallet-client.js';
 
 export interface GrpcClients {
   auth: AuthGrpcClient;
+  registration: RegistrationGrpcClient;
   iot: IotGrpcClient;
   wallet: WalletGrpcClient;
 }
@@ -22,6 +24,16 @@ const grpcPlugin: FastifyPluginAsync = fp(async (fastify) => {
     interceptors: [
       createHeaderPropagationInterceptor(() => {
         // Retrieve current context from request store if available
+        return fastify.requestContext?.get?.('tracing');
+      }),
+    ],
+  });
+
+  const registraionTransport = createGrpcTransport({
+    baseUrl: fastify.config.grpc.iotServiceUrl,
+    ...(tlsOptions ? { nodeOptions: tlsOptions } : {}),
+    interceptors: [
+      createHeaderPropagationInterceptor(() => {
         return fastify.requestContext?.get?.('tracing');
       }),
     ],
@@ -53,6 +65,7 @@ const grpcPlugin: FastifyPluginAsync = fp(async (fastify) => {
     auth: new AuthGrpcClient(authTransport, fastify.log),
     iot: new IotGrpcClient(iotTransport, fastify.log),
     wallet: new WalletGrpcClient(billingTransport, fastify.log),
+    registration: new RegistrationGrpcClient(registraionTransport),
   });
 });
 
