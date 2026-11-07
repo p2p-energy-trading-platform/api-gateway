@@ -1,76 +1,64 @@
-import { Type } from 'typebox';
+import { Type, type Static } from 'typebox';
 
+import { strictObject } from '../../common/validation.js';
 
+const meterIdSchema = Type.String({ minLength: 1, maxLength: 100 });
+const registrationIdSchema = Type.String({ minLength: 1, maxLength: 100 });
 
-//POST: Initiate meter claim
 export const initiateMeterClaimSchema = {
-
-    body: Type.Object({
-        user_reference: Type.String({ minLength: 1 }),
-        meter_id: Type.String({ minLength: 1 }),
+  body: strictObject({
+    meter_id: meterIdSchema,
+  }),
+  response: {
+    200: strictObject({
+      registration_id: Type.String(),
+      status: Type.String(),
+      message: Type.String(),
     }),
+  },
+};
 
-    response:{
-        200: Type.Object({
-            registration_id: Type.String(),
-            status: Type.String(),
-            message: Type.String(),
-        }),
-    },
-
-}; 
-
-//GET: Get registration status
 export const getRegistrationStatusSchema = {
-
-    params: Type.Object({
-        registrationId: Type.String({ minLength: 1 }),
+  params: strictObject({
+    registrationId: registrationIdSchema,
+  }),
+  response: {
+    200: strictObject({
+      registration_id: Type.String(),
+      meter_id: Type.String(),
+      approval_status: Type.String(),
     }),
-
-    response: {
-        200: Type.Object({
-            registration_id: Type.String(),
-            meter_id: Type.String(),
-            approval_status: Type.String(),
-        }),
-    },
-
+  },
 };
 
-
-//POST: validate device association
 export const validateDeviceAssociationSchema = {
-
-    body: Type.Object({
-        meter_id: Type.String({ minLength: 1 }),
+  body: strictObject({
+    meter_id: meterIdSchema,
+  }),
+  response: {
+    200: strictObject({
+      is_registered: Type.Boolean(),
+      primary_user_id: Type.String(),
     }),
-
-    response: {
-        200: Type.Object({
-            is_registered: Type.Boolean(),
-            primary_user_id: Type.String(),
-        }),
-    },
-
+  },
 };
 
-
-//POST: Reverify registration
 export const reverifyRegistrationSchema = {
-
-    body: Type.Object({
-        registration_id: Type.String({ minLength: 1 }),
-        user_reference: Type.String({ minLength: 1 }),
-        meter_id: Type.String({ minLength: 1 }),
+  body: strictObject({
+    registration_id: registrationIdSchema,
+    meter_id: meterIdSchema,
+  }),
+  response: {
+    200: strictObject({
+      registration_id: Type.String(),
+      meter_id: Type.String(),
+      message: Type.String(),
+      status: Type.String(),
     }),
-
-    response: {
-        200: Type.Object({
-            registration_id: Type.String(),
-            meter_id: Type.String(),
-            message: Type.String(),
-            status: Type.String(),
-        }),
-    },
-
+  },
 };
+
+export type InitiateMeterClaimBody = Static<typeof initiateMeterClaimSchema.body>;
+export type RegistrationIdParams = Static<typeof getRegistrationStatusSchema.params>;
+export type ValidateDeviceAssociationBody = Static<typeof validateDeviceAssociationSchema.body>;
+export type ReverifyRegistrationBody = Static<typeof reverifyRegistrationSchema.body>;

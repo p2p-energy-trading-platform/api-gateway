@@ -19,55 +19,41 @@ import {
 
 
 export async function registerRegistrationRoutes(app: FastifyInstance): Promise<void> {
+  const router = app.withTypeProvider<TypeBoxTypeProvider>();
 
-    const router = app.withTypeProvider<TypeBoxTypeProvider>();
+  router.post(
+    '/api/v1/registration/claim',
+    {
+      config: { rateLimit: 'registration-claim', auth: 'required' },
+      schema: initiateMeterClaimSchema,
+    },
+    initiateMeterClaimHandler,
+  );
 
+  router.get(
+    '/api/v1/registration/status/:registrationId',
+    {
+      config: { rateLimit: 'registration-check', auth: 'required' },
+      schema: getRegistrationStatusSchema,
+    },
+    getRegistrationStatusHandler,
+  );
 
-    //POST: Initiate meter claim
-    router.post(
+  router.post(
+    '/api/v1/registration/validate',
+    {
+      config: { rateLimit: 'registration-check', auth: 'required' },
+      schema: validateDeviceAssociationSchema,
+    },
+    validateDeviceAssociationHandler,
+  );
 
-        '/registration/claim',
-        {
-            schema: initiateMeterClaimSchema,
-        },
-        initiateMeterClaimHandler,
-
-    );
-
-
-    //GET: Get registration status
-    router.get(
-
-        '/registration/status/:registrationId',
-        {
-            schema: getRegistrationStatusSchema,
-        },
-        getRegistrationStatusHandler,
-
-    );
-
-
-    //POST: validate device association
-    router.post(
-
-        '/registration/validate',
-        {
-            schema: validateDeviceAssociationSchema,
-        },
-        validateDeviceAssociationHandler,
-
-    );
-
-
-    //POST: Reverify registration
-    router.post(
-
-        '/registration/reverify',
-        {
-            schema: reverifyRegistrationSchema,
-        },
-        reverifyRegistrationHandler,
-
-    );
-
+  router.post(
+    '/api/v1/registration/reverify',
+    {
+      config: { rateLimit: 'registration-reverify', auth: 'required' },
+      schema: reverifyRegistrationSchema,
+    },
+    reverifyRegistrationHandler,
+  );
 }

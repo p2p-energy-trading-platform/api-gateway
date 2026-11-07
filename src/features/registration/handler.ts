@@ -1,118 +1,82 @@
-import type { FastifyReply, FastifyRequest } from 'fastify';
+import type { FastifyRequest } from 'fastify';
 
-
-//Import registration schemas here
-
+import { AppError } from '../../errors/app-error.js';
+import { grpcDeadlinesMs } from '../../transport/grpc/deadlines.js';
 import {
-    mapInitiateMeterClaimRequest,
-    mapInitiateMeterClaimResponse,
-    mapGetRegistrationStatusRequest,
-    mapGetRegistrationStatusResponse,
-    mapValidateDeviceAssociationRequest,
-    mapValidateDeviceAssociationResponse,
-    mapReverifyRegistrationRequest,
-    mapReverifyRegistrationResponse,
-}from './mapper.js';
+  mapInitiateMeterClaimRequest,
+  mapInitiateMeterClaimResponse,
+  mapGetRegistrationStatusRequest,
+  mapGetRegistrationStatusResponse,
+  mapValidateDeviceAssociationRequest,
+  mapValidateDeviceAssociationResponse,
+  mapReverifyRegistrationRequest,
+  mapReverifyRegistrationResponse,
+} from './mapper.js';
+import type {
+  InitiateMeterClaimBody,
+  RegistrationIdParams,
+  ReverifyRegistrationBody,
+  ValidateDeviceAssociationBody,
+} from './schemas.js';
 
+function currentUserId(request: FastifyRequest): string {
+  if (request.principal === null) {
+    throw new AppError('UNAUTHENTICATED');
+  }
+  return request.principal.userId;
+}
 
-
-//POST: Initiate meter claim
 export async function initiateMeterClaimHandler(
-    request: FastifyRequest,
-    reply: FastifyReply,
-){
+  request: FastifyRequest<{ Body: InitiateMeterClaimBody }>,
+) {
+  const grpcRequest = mapInitiateMeterClaimRequest({
+    user_reference: currentUserId(request),
+    meter_id: request.body.meter_id,
+  });
+  const grpcResponse = await request.server.grpcClients.registration.initiateMeterClaim(
+    grpcRequest,
+    grpcDeadlinesMs.registrationInitiateMeterClaim,
+  );
 
-    const body = request.body as {
-        user_reference: string;
-        meter_id: string;
-    };
-
-    //HTTP Request → gRPC Request
-    const grpcRequest = mapInitiateMeterClaimRequest(body);
-
-    // Call gRPC client here
-    const grpcResponse = await request.server.grpcClients.registration.initiateMeterClaim(grpcRequest);
-
-    // gRPC Response → HTTP Response
-    const response = mapInitiateMeterClaimResponse(grpcResponse);
-
-    return reply.code(200).send(response);
-
+  return mapInitiateMeterClaimResponse(grpcResponse);
 }
 
-
-//GET: Get registration status
 export async function getRegistrationStatusHandler(
-    request: FastifyRequest,
-    reply: FastifyReply,
-){
+  request: FastifyRequest<{ Params: RegistrationIdParams }>,
+) {
+  const grpcRequest = mapGetRegistrationStatusRequest(request.params);
+  const grpcResponse = await request.server.grpcClients.registration.getRegistrationStatus(
+    grpcRequest,
+    grpcDeadlinesMs.registrationGetStatus,
+  );
 
-    const params = request.params as {
-        registrationId: string;
-    };
-
-    // HTTP Request → gRPC Request
-    const grpcRequest = mapGetRegistrationStatusRequest(params);
-
-    // Call gRPC client here
-    const grpcResponse = await request.server.grpcClients.registration.getRegistrationStatus(grpcRequest);
-
-    // gRPC Response → HTTP Response
-    const response = mapGetRegistrationStatusResponse(grpcResponse); 
-
-    return reply.code(200).send(response);
-
+  return mapGetRegistrationStatusResponse(grpcResponse);
 }
 
-
-
-//POST: validate device association
 export async function validateDeviceAssociationHandler(
-    request: FastifyRequest,
-    reply: FastifyReply,
-){
+  request: FastifyRequest<{ Body: ValidateDeviceAssociationBody }>,
+) {
+  const grpcRequest = mapValidateDeviceAssociationRequest(request.body);
+  const grpcResponse = await request.server.grpcClients.registration.validateDeviceAssociation(
+    grpcRequest,
+    grpcDeadlinesMs.registrationValidateAssociation,
+  );
 
-    const body = request.body as {
-        meter_id: string;
-    };
-
-    // HTTP Request → gRPC Request
-    const grpcRequest = mapValidateDeviceAssociationRequest(body);
-
-
-    // Call gRPC client here
-    const grpcResponse = await request.server.grpcClients.registration.validateDeviceAssociation(grpcRequest);
-
-    // gRPC Response → HTTP Response
-    const response = mapValidateDeviceAssociationResponse(grpcResponse);
-
-    return reply.code(200).send(response);
-
+  return mapValidateDeviceAssociationResponse(grpcResponse);
 }
 
-
-//POST: Reverify registration
 export async function reverifyRegistrationHandler(
-    request: FastifyRequest,
-    reply: FastifyReply,
-){
+  request: FastifyRequest<{ Body: ReverifyRegistrationBody }>,
+) {
+  const grpcRequest = mapReverifyRegistrationRequest({
+    registration_id: request.body.registration_id,
+    user_reference: currentUserId(request),
+    meter_id: request.body.meter_id,
+  });
+  const grpcResponse = await request.server.grpcClients.registration.reverifyRegistration(
+    grpcRequest,
+    grpcDeadlinesMs.registrationReverify,
+  );
 
-    const body = request.body as {
-        registration_id: string;
-        user_reference: string;
-        meter_id: string;
-    };
-
-    // HTTP Request → gRPC Request
-    const grpcRequest = mapReverifyRegistrationRequest(body);
-
-    // Call gRPC client here
-    const grpcResponse = await request.server.grpcClients.registration.reverifyRegistration(grpcRequest);
-
-    // gRPC Response → HTTP Response
-    const response = mapReverifyRegistrationResponse(grpcResponse);
-
-
-    return reply.code(200).send(response);
-
+  return mapReverifyRegistrationResponse(grpcResponse);
 }
