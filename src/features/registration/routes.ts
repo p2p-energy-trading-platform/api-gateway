@@ -2,21 +2,20 @@ import type { TypeBoxTypeProvider } from '@fastify/type-provider-typebox';
 import type { FastifyInstance } from 'fastify';
 
 import {
-    initiateMeterClaimSchema,
-    getRegistrationStatusSchema,
-    validateDeviceAssociationSchema,
-    reverifyRegistrationSchema,
-}from './schemas.js'; 
+  initiateMeterClaimSchema,
+  getRegistrationStatusSchema,
+  validateDeviceAssociationSchema,
+  reverifyRegistrationSchema,
+} from './schemas.js';
 
 import {
-    initiateMeterClaimHandler,
-    getRegistrationStatusHandler,
-    validateDeviceAssociationHandler,
-    reverifyRegistrationHandler,
-}from './handler.js';
+  initiateMeterClaimHandler,
+  getRegistrationStatusHandler,
+  validateDeviceAssociationHandler,
+  reverifyRegistrationHandler,
+} from './handler.js';
 
 //Import registration schemas here
-
 
 export async function registerRegistrationRoutes(app: FastifyInstance): Promise<void> {
   const router = app.withTypeProvider<TypeBoxTypeProvider>();
