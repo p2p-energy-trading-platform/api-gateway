@@ -20,6 +20,7 @@ import grpcPlugin from './plugins/grpc.js';
 import { registerAuthRoutes } from './features/auth/routes.js';
 import { registerKycRoutes } from './features/kyc/routes.js';
 import { registerIotRoutes } from './features/iot/routes.js';
+import { registerRegistrationRoutes } from './features/registration/routes.js';
 import { registerWalletRoutes } from './features/wallet/routes.js';
 import cookie from '@fastify/cookie';
 import csrf from './plugins/csrf.js';
@@ -132,6 +133,7 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
   await registerAuthRoutes(app);
   await registerKycRoutes(app);
   await registerIotRoutes(app);
+  await registerRegistrationRoutes(app);
   await registerWalletRoutes(app);
 
   if (registerInfrastructure) {

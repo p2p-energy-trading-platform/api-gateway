@@ -22,6 +22,9 @@ export const rateLimitPolicies = {
   'auth-kyc-submit': { limit: 10, windowMs: ONE_MINUTE_MS },
   'auth-kyc-nic-ocr': { limit: 5, windowMs: ONE_MINUTE_MS },
   'auth-google': { limit: 20, windowMs: ONE_MINUTE_MS },
+  'registration-claim': { limit: 10, windowMs: ONE_MINUTE_MS },
+  'registration-check': { limit: 10, windowMs: ONE_MINUTE_MS },
+  'registration-reverify': { limit: 50, windowMs: ONE_MINUTE_MS },
   'websocket-connect': { limit: 20, windowMs: ONE_MINUTE_MS },
 } as const satisfies Record<string, RateLimitPolicy>;
 
