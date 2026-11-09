@@ -33,6 +33,7 @@ function mapKycStatus(state: KycState): MeResponse['kycStatus'] {
       return 'rejected';
     case KycState.UNSPECIFIED:
     default:
+      // Treat an unspecified KYC state as no KYC submission.
       return 'none';
   }
 }
