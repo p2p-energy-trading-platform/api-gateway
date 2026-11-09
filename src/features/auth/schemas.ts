@@ -59,6 +59,12 @@ export const meResponseSchema = strictObject({
   name: Type.String(),
   status: Type.String(),
   role: Type.String(),
+  kycStatus: Type.Union([
+    Type.Literal('none'),
+    Type.Literal('pending'),
+    Type.Literal('verified'),
+    Type.Literal('rejected'),
+  ]),
 });
 
 export type LoginBody = Static<typeof loginBodySchema>;

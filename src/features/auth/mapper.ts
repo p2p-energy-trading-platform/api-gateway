@@ -1,4 +1,8 @@
-import type { RegisterResponse as GrpcRegisterResponse } from '@p2p-energy-trading-platform/typescript-sdk/gen/gridx/auth/v1/auth_pb';
+import {
+  KycState,
+  type GetUserResponse,
+  type RegisterResponse as GrpcRegisterResponse,
+} from '@p2p-energy-trading-platform/typescript-sdk/gen/gridx/auth/v1/auth_pb';
 
 import type { RegisterResponse } from './schemas.js';
 import type { LoginResponse, MeResponse } from './schemas.js';
@@ -19,13 +23,28 @@ export function mapLoginResponse(result: { userId: string; email: string }): Log
   return { userId: result.userId, email: result.email };
 }
 
-export function mapMeResponse(result: MeResponse): MeResponse {
+function mapKycStatus(state: KycState): MeResponse['kycStatus'] {
+  switch (state) {
+    case KycState.PENDING:
+      return 'pending';
+    case KycState.VERIFIED:
+      return 'verified';
+    case KycState.REJECTED:
+      return 'rejected';
+    case KycState.UNSPECIFIED:
+    default:
+      return 'none';
+  }
+}
+
+export function mapMeResponse(result: GetUserResponse): MeResponse {
   return {
     userId: result.userId,
     email: result.email,
     name: result.name,
     status: result.status,
     role: result.role,
+    kycStatus: mapKycStatus(result.kycState),
   };
 }
 
