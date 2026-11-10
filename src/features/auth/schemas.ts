@@ -60,11 +60,7 @@ export const meResponseSchema = strictObject({
   status: Type.String(),
   role: Type.String(),
   kycStatus: Type.Optional(
-    Type.Union([
-      Type.Literal('PENDING'),
-      Type.Literal('VERIFIED'),
-      Type.Literal('REJECTED'),
-    ]),
+    Type.Union([Type.Literal('PENDING'), Type.Literal('VERIFIED'), Type.Literal('REJECTED')]),
   ),
 });
 
