@@ -1,9 +1,9 @@
 import {
-  KycState,
   type GetUserResponse,
   type RegisterResponse as GrpcRegisterResponse,
 } from '@p2p-energy-trading-platform/typescript-sdk/gen/gridx/auth/v1/auth_pb';
 
+import { mapKycState } from '../../common/mapper.js';
 import type { RegisterResponse } from './schemas.js';
 import type { LoginResponse, MeResponse } from './schemas.js';
 import { timestampDate } from '@bufbuild/protobuf/wkt';
@@ -23,29 +23,16 @@ export function mapLoginResponse(result: { userId: string; email: string }): Log
   return { userId: result.userId, email: result.email };
 }
 
-function mapKycStatus(state: KycState): MeResponse['kycStatus'] {
-  switch (state) {
-    case KycState.PENDING:
-      return 'pending';
-    case KycState.VERIFIED:
-      return 'verified';
-    case KycState.REJECTED:
-      return 'rejected';
-    case KycState.UNSPECIFIED:
-    default:
-      // Treat an unspecified KYC state as no KYC submission.
-      return 'none';
-  }
-}
-
 export function mapMeResponse(result: GetUserResponse): MeResponse {
+  const kycState = mapKycState(result.kycState);
+
   return {
     userId: result.userId,
     email: result.email,
     name: result.name,
     status: result.status,
     role: result.role,
-    kycStatus: mapKycStatus(result.kycState),
+    kycStatus: kycState ? (kycState.toLowerCase() as MeResponse['kycStatus']) : 'none',
   };
 }
 
