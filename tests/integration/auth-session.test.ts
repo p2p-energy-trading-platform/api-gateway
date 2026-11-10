@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 
 import { Code, ConnectError } from '@connectrpc/connect';
+import { KycState } from '@p2p-energy-trading-platform/typescript-sdk/gen/gridx/auth/v1/auth_pb';
 import type { FastifyInstance } from 'fastify';
 import { afterEach, describe, expect, it } from 'vitest';
 
@@ -27,6 +28,7 @@ describe('cookie sessions', () => {
   interface SetupOptions {
     refreshFails?: boolean;
     logoutFails?: boolean;
+    kycState?: KycState;
   }
 
   async function setup(options: SetupOptions = {}) {
@@ -40,6 +42,7 @@ describe('cookie sessions', () => {
         name: 'Test User',
         status: 'ACTIVE',
         role: 'USER',
+        kycState: options.kycState ?? KycState.UNSPECIFIED,
       }),
       refreshToken: async ({ refreshToken }) => {
         refreshCalls.push(refreshToken);
@@ -112,6 +115,37 @@ describe('cookie sessions', () => {
         status: 'ACTIVE',
         role: 'USER',
       });
+      expect(response.json()).not.toHaveProperty('kycStatus');
+    });
+
+    it.each([
+      [KycState.PENDING, 'PENDING'],
+      [KycState.VERIFIED, 'VERIFIED'],
+      [KycState.REJECTED, 'REJECTED'],
+    ] as const)('maps KYC state %s to %s', async (kycState, expectedStatus) => {
+      const instance = await setup({ kycState });
+
+      const response = await instance.inject({
+        method: 'GET',
+        url: '/api/v1/auth/me',
+        cookies: { gridx_access: await accessToken() },
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.json().kycStatus).toBe(expectedStatus);
+    });
+
+    it('omits KYC status for an unknown upstream state', async () => {
+      const instance = await setup({ kycState: 999 as KycState });
+
+      const response = await instance.inject({
+        method: 'GET',
+        url: '/api/v1/auth/me',
+        cookies: { gridx_access: await accessToken() },
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.json()).not.toHaveProperty('kycStatus');
     });
 
     it('prefers the Bearer header over the cookie', async () => {
