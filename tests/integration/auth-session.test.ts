@@ -114,14 +114,14 @@ describe('cookie sessions', () => {
         name: 'Test User',
         status: 'ACTIVE',
         role: 'USER',
-        kycStatus: 'none',
       });
+      expect(response.json()).not.toHaveProperty('kycStatus');
     });
 
     it.each([
-      [KycState.PENDING, 'pending'],
-      [KycState.VERIFIED, 'verified'],
-      [KycState.REJECTED, 'rejected'],
+      [KycState.PENDING, 'PENDING'],
+      [KycState.VERIFIED, 'VERIFIED'],
+      [KycState.REJECTED, 'REJECTED'],
     ] as const)('maps KYC state %s to %s', async (kycState, expectedStatus) => {
       const instance = await setup({ kycState });
 
@@ -133,6 +133,19 @@ describe('cookie sessions', () => {
 
       expect(response.statusCode).toBe(200);
       expect(response.json().kycStatus).toBe(expectedStatus);
+    });
+
+    it('omits KYC status for an unknown upstream state', async () => {
+      const instance = await setup({ kycState: 999 as KycState });
+
+      const response = await instance.inject({
+        method: 'GET',
+        url: '/api/v1/auth/me',
+        cookies: { gridx_access: await accessToken() },
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.json()).not.toHaveProperty('kycStatus');
     });
 
     it('prefers the Bearer header over the cookie', async () => {

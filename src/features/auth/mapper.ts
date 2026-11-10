@@ -32,7 +32,7 @@ export function mapMeResponse(result: GetUserResponse): MeResponse {
     name: result.name,
     status: result.status,
     role: result.role,
-    kycStatus: kycState ? (kycState.toLowerCase() as MeResponse['kycStatus']) : 'none',
+    ...(kycState !== undefined ? { kycStatus: kycState } : {}),
   };
 }
 
