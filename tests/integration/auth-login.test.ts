@@ -49,15 +49,19 @@ describe('POST /api/v1/auth/login', () => {
     fake = undefined;
   });
 
-  it('sets the access and refresh cookies and returns no token', async () => {
+  it('sets the access and refresh cookies and returns mobile tokens', async () => {
     const instance = await setup();
 
     const response = await instance.inject({ method: 'POST', url: URL, payload: VALID_BODY });
 
     expect(response.statusCode).toBe(200);
-    expect(response.json()).toEqual({ userId: 'user-1', email: VALID_BODY.email });
-    expect(response.body).not.toContain(ACCESS_TOKEN);
-    expect(response.body).not.toContain(REFRESH_TOKEN);
+    expect(response.json()).toEqual({
+      userId: 'user-1',
+      email: VALID_BODY.email,
+      accessToken: ACCESS_TOKEN,
+      refreshToken: REFRESH_TOKEN,
+      expiresIn: 60,
+    });
 
     const access = response.cookies.find((cookie) => cookie.name === 'gridx_access');
     const refresh = response.cookies.find((cookie) => cookie.name === 'gridx_refresh');

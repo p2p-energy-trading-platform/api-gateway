@@ -26,6 +26,7 @@ import {
 import {
   loginBodySchema,
   loginResponseSchema,
+  refreshResponseSchema,
   meResponseSchema,
   registerBodySchema,
   registerResponseSchema,
@@ -149,6 +150,7 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
     '/api/v1/auth/refresh',
     {
       config: { rateLimit: 'auth-refresh', auth: 'public' },
+      schema: { response: { 200: refreshResponseSchema } },
     },
     refreshHandler,
   );

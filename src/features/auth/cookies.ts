@@ -13,6 +13,11 @@ export interface SessionTokens {
   expiresIn: number;
 }
 
+export type RefreshCredential = {
+  token: string;
+  source: 'bearer' | 'cookie';
+};
+
 function baseCookieOptions(config: AppConfig) {
   return {
     httpOnly: true,
@@ -49,7 +54,24 @@ export function clearSessionCookies(reply: FastifyReply, config: AppConfig): voi
 }
 
 export function readRefreshToken(request: FastifyRequest): string | undefined {
+  return readRefreshCredential(request)?.token;
+}
+
+export function readRefreshCredential(request: FastifyRequest): RefreshCredential | undefined {
+  const authorization = request.headers.authorization;
+
+  if (authorization !== undefined) {
+    const match = /^Bearer ([^\s]+)$/.exec(authorization);
+
+    if (match === null) {
+      return undefined;
+    }
+
+    const token = match[1];
+    return token === undefined ? undefined : { token, source: 'bearer' };
+  }
+
   const token = request.cookies[REFRESH_COOKIE_NAME];
 
-  return token === undefined || token === '' ? undefined : token;
+  return token === undefined || token === '' ? undefined : { token, source: 'cookie' };
 }

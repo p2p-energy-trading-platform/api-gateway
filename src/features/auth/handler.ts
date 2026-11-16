@@ -21,6 +21,7 @@ import type {
   RequestPasswordResetResponse,
   ResetPasswordBody,
   ResetPasswordResponse,
+  RefreshResponse,
 } from './schemas.js';
 import {
   mapLoginResponse,
@@ -29,7 +30,7 @@ import {
   mapRegisterResponse,
 } from './mapper.js';
 import { AppError } from '../../errors/app-error.js';
-import { clearSessionCookies, readRefreshToken, setSessionCookies } from './cookies.js';
+import { clearSessionCookies, readRefreshCredential, setSessionCookies } from './cookies.js';
 
 export async function verifyEmailHandler(
   request: FastifyRequest<{ Body: VerifyEmailBody }>,
@@ -126,25 +127,32 @@ export async function loginHandler(
 export async function refreshHandler(
   request: FastifyRequest,
   reply: FastifyReply,
-): Promise<FastifyReply> {
-  const refreshToken = readRefreshToken(request);
+): Promise<RefreshResponse | void> {
+  const credential = readRefreshCredential(request);
 
-  if (refreshToken === undefined) {
+  if (credential === undefined) {
     throw new AppError('UNAUTHENTICATED', 'Missing refresh token.');
   }
 
   try {
     // auth-service rotates the refresh token: the old one is revoked and a new one is returned.
     const result = await request.server.grpcClients.auth.refreshToken(
-      { refreshToken },
+      { refreshToken: credential.token },
       grpcDeadlinesMs.authRefresh,
     );
 
-    setSessionCookies(reply, request.server.config, {
+    const tokens = {
       accessToken: result.accessToken,
       refreshToken: result.refreshToken,
-      expiresIn: result.expiresIn,
-    });
+      expiresIn: Number(result.expiresIn),
+    };
+
+    if (credential.source === 'bearer') {
+      reply.code(200);
+      return tokens satisfies RefreshResponse;
+    }
+
+    setSessionCookies(reply, request.server.config, tokens);
   } catch (error) {
     // A revoked or expired refresh token cannot be used again, so drop the cookies.
     if (error instanceof AppError && error.code === 'UNAUTHENTICATED') {
@@ -154,21 +162,26 @@ export async function refreshHandler(
     throw error;
   }
 
-  return reply.code(204).send();
+  reply.code(204).send();
 }
 
 export async function logoutHandler(
   request: FastifyRequest,
   reply: FastifyReply,
 ): Promise<FastifyReply> {
-  const refreshToken = readRefreshToken(request);
+  const credential = readRefreshCredential(request);
 
-  clearSessionCookies(reply, request.server.config);
+  if (credential?.source !== 'bearer') {
+    clearSessionCookies(reply, request.server.config);
+  }
 
-  if (refreshToken !== undefined) {
+  if (credential !== undefined) {
     try {
       // Revokes the session in auth-service, so the refresh token can no longer be used.
-      await request.server.grpcClients.auth.logout({ refreshToken }, grpcDeadlinesMs.authLogout);
+      await request.server.grpcClients.auth.logout(
+        { refreshToken: credential.token },
+        grpcDeadlinesMs.authLogout,
+      );
     } catch (error) {
       // Already revoked or expired: the user is logged out either way.
       if (!(error instanceof AppError && error.code === 'UNAUTHENTICATED')) {

@@ -179,6 +179,25 @@ describe('cookie sessions', () => {
       expect(refreshCalls).toEqual([]);
     });
 
+    it('returns rotated tokens for a bearer refresh token without cookies', async () => {
+      const instance = await setup();
+
+      const response = await instance.inject({
+        method: 'POST',
+        url: '/api/v1/auth/refresh',
+        headers: { authorization: 'Bearer old-refresh' },
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.json()).toEqual({
+        accessToken: 'new-access',
+        refreshToken: 'new-refresh',
+        expiresIn: 900,
+      });
+      expect(refreshCalls).toEqual(['old-refresh']);
+      expect(response.headers['set-cookie']).toBeUndefined();
+    });
+
     it('clears the cookies when auth-service rejects the refresh token', async () => {
       const instance = await setup({ refreshFails: true });
 
@@ -242,6 +261,20 @@ describe('cookie sessions', () => {
         url: '/api/v1/auth/logout',
         headers: ORIGIN,
         cookies: { gridx_refresh: 'revoked-refresh' },
+      });
+
+      it('revokes a bearer refresh token without requiring an Origin header', async () => {
+        const instance = await setup();
+
+        const response = await instance.inject({
+          method: 'POST',
+          url: '/api/v1/auth/logout',
+          headers: { authorization: 'Bearer refresh-1' },
+        });
+
+        expect(response.statusCode).toBe(204);
+        expect(logoutCalls).toEqual(['refresh-1']);
+        expect(response.headers['set-cookie']).toBeUndefined();
       });
 
       expect(response.statusCode).toBe(204);

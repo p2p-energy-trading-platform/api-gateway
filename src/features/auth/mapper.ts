@@ -12,11 +12,26 @@ export function mapRegisterResponse(result: GrpcRegisterResponse): RegisterRespo
     createdAt: result.createdAtTime
       ? timestampDate(result.createdAtTime).toISOString()
       : new Date().toISOString(),
+    accessToken: result.accessToken,
+    refreshToken: result.refreshToken,
+    expiresIn: Number(result.expiresIn),
   };
 }
 
-export function mapLoginResponse(result: { userId: string; email: string }): LoginResponse {
-  return { userId: result.userId, email: result.email };
+export function mapLoginResponse(result: {
+  userId: string;
+  email: string;
+  accessToken: string;
+  refreshToken: string;
+  expiresIn: bigint;
+}): LoginResponse {
+  return {
+    userId: result.userId,
+    email: result.email,
+    accessToken: result.accessToken,
+    refreshToken: result.refreshToken,
+    expiresIn: Number(result.expiresIn),
+  };
 }
 
 export function mapMeResponse(result: MeResponse): MeResponse {

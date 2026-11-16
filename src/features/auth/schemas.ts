@@ -13,6 +13,9 @@ export const registerResponseSchema = strictObject({
   email: Type.String(),
   status: Type.String(),
   createdAt: Type.String({ format: 'date-time' }),
+  accessToken: Type.String(),
+  refreshToken: Type.String(),
+  expiresIn: Type.Integer(),
 });
 
 export type RegisterBody = Static<typeof registerBodySchema>;
@@ -51,6 +54,15 @@ export const loginBodySchema = strictObject({
 export const loginResponseSchema = strictObject({
   userId: Type.String(),
   email: Type.String(),
+  accessToken: Type.String(),
+  refreshToken: Type.String(),
+  expiresIn: Type.Integer(),
+});
+
+export const refreshResponseSchema = strictObject({
+  accessToken: Type.String(),
+  refreshToken: Type.String(),
+  expiresIn: Type.Integer(),
 });
 
 export const meResponseSchema = strictObject({
@@ -64,6 +76,7 @@ export const meResponseSchema = strictObject({
 export type LoginBody = Static<typeof loginBodySchema>;
 
 export type LoginResponse = Static<typeof loginResponseSchema>;
+export type RefreshResponse = Static<typeof refreshResponseSchema>;
 
 export type MeResponse = Static<typeof meResponseSchema>;
 

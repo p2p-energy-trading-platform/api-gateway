@@ -20,6 +20,9 @@ function registerSucceeds(email: string) {
     email,
     status: 'active',
     createdAtTime: timestampFromDate(new Date('2026-10-06T10:00:00Z')),
+    accessToken: 'access-token-for-test',
+    refreshToken: 'refresh-token-for-test',
+    expiresIn: 900n,
   };
 }
 
@@ -80,6 +83,9 @@ describe('POST /api/v1/auth/register', () => {
       email: 'new@example.com',
       status: 'active',
       createdAt: '2026-10-06T10:00:00.000Z',
+      accessToken: 'access-token-for-test',
+      refreshToken: 'refresh-token-for-test',
+      expiresIn: 900,
     });
     expect(received).toEqual([VALID_BODY]);
   });
