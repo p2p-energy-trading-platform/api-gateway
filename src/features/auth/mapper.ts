@@ -1,5 +1,9 @@
-import type { RegisterResponse as GrpcRegisterResponse } from '@p2p-energy-trading-platform/typescript-sdk/gen/gridx/auth/v1/auth_pb';
+import {
+  type GetUserResponse,
+  type RegisterResponse as GrpcRegisterResponse,
+} from '@p2p-energy-trading-platform/typescript-sdk/gen/gridx/auth/v1/auth_pb';
 
+import { mapKycState } from '../../common/mapper.js';
 import type { RegisterResponse } from './schemas.js';
 import type { LoginResponse, MeResponse } from './schemas.js';
 import { timestampDate } from '@bufbuild/protobuf/wkt';
@@ -19,13 +23,16 @@ export function mapLoginResponse(result: { userId: string; email: string }): Log
   return { userId: result.userId, email: result.email };
 }
 
-export function mapMeResponse(result: MeResponse): MeResponse {
+export function mapMeResponse(result: GetUserResponse): MeResponse {
+  const kycState = mapKycState(result.kycState);
+
   return {
     userId: result.userId,
     email: result.email,
     name: result.name,
     status: result.status,
     role: result.role,
+    ...(kycState !== undefined ? { kycStatus: kycState } : {}),
   };
 }
 
