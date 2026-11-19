@@ -14,6 +14,7 @@ interface RawEnvironment {
   BODY_LIMIT_BYTES: number;
   REQUEST_TIMEOUT_MS: number;
   CORS_ORIGINS: string;
+  WS_MAX_CONNECTION_AGE_MS: number;
   COOKIE_SECURE: boolean;
   COOKIE_SAME_SITE: CookieSameSite;
   COOKIE_DOMAIN?: string;
@@ -234,6 +235,10 @@ export function loadConfig(): AppConfig {
 
     cors: {
       origins: corsOrigins,
+    },
+
+    websocket: {
+      maxConnectionAgeMs: env.WS_MAX_CONNECTION_AGE_MS,
     },
 
     cookies: {

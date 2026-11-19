@@ -24,6 +24,10 @@ export const testConfig: AppConfig = {
     origins: ['http://localhost:5173'],
   },
 
+  websocket: {
+    maxConnectionAgeMs: 900_000,
+  },
+
   cookies: {
     secure: true,
     sameSite: 'lax',

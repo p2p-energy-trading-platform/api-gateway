@@ -26,6 +26,11 @@ export interface AppConfig {
     origins: string[];
   };
 
+  websocket: {
+    // Connections are closed with 4001 after about this long, so clients reauthenticate.
+    maxConnectionAgeMs: number;
+  };
+
   cookies: {
     secure: boolean;
     sameSite: CookieSameSite;

@@ -6,7 +6,11 @@ export const PROTOCOL_VERSION = 1;
 
 const clientMessageValidator = Compile(clientMessageSchema);
 
-export type ProtocolErrorCode = 'INVALID_MESSAGE' | 'TOPIC_NOT_ALLOWED' | 'TOO_MANY_SUBSCRIPTIONS';
+export type ProtocolErrorCode =
+  | 'INVALID_MESSAGE'
+  | 'TOPIC_NOT_ALLOWED'
+  | 'TOPIC_UNAVAILABLE'
+  | 'TOO_MANY_SUBSCRIPTIONS';
 
 export type ParseResult =
   | { ok: true; message: ClientMessage }
