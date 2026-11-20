@@ -17,6 +17,7 @@ import {
 import { testConfig } from '../helpers/test-config.js';
 
 const ORIGIN = { origin: 'http://localhost:5173' };
+const MOBILE = { 'x-client-type': 'mobile' };
 
 describe('cookie sessions', () => {
   let app: FastifyInstance | undefined;
@@ -213,13 +214,14 @@ describe('cookie sessions', () => {
       expect(refreshCalls).toEqual([]);
     });
 
-    it('returns rotated tokens for a bearer refresh token without cookies', async () => {
+    it('returns rotated tokens in the body for a mobile client', async () => {
       const instance = await setup();
 
       const response = await instance.inject({
         method: 'POST',
         url: '/api/v1/auth/refresh',
-        headers: { authorization: 'Bearer old-refresh' },
+        headers: MOBILE,
+        payload: { refreshToken: 'old-refresh' },
       });
 
       expect(response.statusCode).toBe(200);
@@ -230,6 +232,64 @@ describe('cookie sessions', () => {
       });
       expect(refreshCalls).toEqual(['old-refresh']);
       expect(response.headers['set-cookie']).toBeUndefined();
+    });
+
+    it('never reads the refresh cookie for a mobile client', async () => {
+      const instance = await setup();
+
+      // A script on our own origin must not be able to swap the httpOnly cookie for JSON tokens.
+      const response = await instance.inject({
+        method: 'POST',
+        url: '/api/v1/auth/refresh',
+        headers: { ...MOBILE, ...ORIGIN },
+        cookies: { gridx_refresh: 'cookie-refresh' },
+      });
+
+      expect(response.statusCode).toBe(401);
+      expect(response.body).not.toContain('new-refresh');
+      expect(refreshCalls).toEqual([]);
+    });
+
+    it('returns 401 for a mobile client with an empty refresh token', async () => {
+      const instance = await setup();
+
+      const response = await instance.inject({
+        method: 'POST',
+        url: '/api/v1/auth/refresh',
+        headers: MOBILE,
+        payload: { refreshToken: '' },
+      });
+
+      expect(response.statusCode).toBe(401);
+      expect(refreshCalls).toEqual([]);
+    });
+
+    it('returns 401 and sets no cookie when a mobile refresh token is rejected', async () => {
+      const instance = await setup({ refreshFails: true });
+
+      const response = await instance.inject({
+        method: 'POST',
+        url: '/api/v1/auth/refresh',
+        headers: MOBILE,
+        payload: { refreshToken: 'revoked-refresh' },
+      });
+
+      expect(response.statusCode).toBe(401);
+      expect(response.headers['set-cookie']).toBeUndefined();
+    });
+
+    it('does not use the Authorization header as a refresh token', async () => {
+      const instance = await setup();
+
+      const response = await instance.inject({
+        method: 'POST',
+        url: '/api/v1/auth/refresh',
+        headers: { ...ORIGIN, authorization: `Bearer ${await accessToken()}` },
+        cookies: { gridx_refresh: 'old-refresh' },
+      });
+
+      expect(response.statusCode).toBe(204);
+      expect(refreshCalls).toEqual(['old-refresh']);
     });
 
     it('clears the cookies when auth-service rejects the refresh token', async () => {
@@ -297,21 +357,49 @@ describe('cookie sessions', () => {
         cookies: { gridx_refresh: 'revoked-refresh' },
       });
 
-      it('revokes a bearer refresh token without requiring an Origin header', async () => {
-        const instance = await setup();
+      expect(response.statusCode).toBe(204);
+    });
 
-        const response = await instance.inject({
-          method: 'POST',
-          url: '/api/v1/auth/logout',
-          headers: { authorization: 'Bearer refresh-1' },
-        });
+    it('revokes a mobile refresh token without an Origin header or cookies', async () => {
+      const instance = await setup();
 
-        expect(response.statusCode).toBe(204);
-        expect(logoutCalls).toEqual(['refresh-1']);
-        expect(response.headers['set-cookie']).toBeUndefined();
+      const response = await instance.inject({
+        method: 'POST',
+        url: '/api/v1/auth/logout',
+        headers: MOBILE,
+        payload: { refreshToken: 'refresh-1' },
       });
 
       expect(response.statusCode).toBe(204);
+      expect(logoutCalls).toEqual(['refresh-1']);
+      expect(response.headers['set-cookie']).toBeUndefined();
+    });
+
+    it('returns 401 when a mobile logout token is rejected', async () => {
+      const instance = await setup({ logoutFails: true });
+
+      const response = await instance.inject({
+        method: 'POST',
+        url: '/api/v1/auth/logout',
+        headers: MOBILE,
+        payload: { refreshToken: 'wrong-token' },
+      });
+
+      expect(response.statusCode).toBe(401);
+      expect(logoutCalls).toEqual(['wrong-token']);
+    });
+
+    it('returns 401 for a mobile logout without a refresh token', async () => {
+      const instance = await setup();
+
+      const response = await instance.inject({
+        method: 'POST',
+        url: '/api/v1/auth/logout',
+        headers: MOBILE,
+      });
+
+      expect(response.statusCode).toBe(401);
+      expect(logoutCalls).toEqual([]);
     });
 
     it('rejects a cookie request from an unknown origin (CSRF)', async () => {

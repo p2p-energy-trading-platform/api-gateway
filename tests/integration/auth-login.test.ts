@@ -49,19 +49,15 @@ describe('POST /api/v1/auth/login', () => {
     fake = undefined;
   });
 
-  it('sets the access and refresh cookies and returns mobile tokens', async () => {
+  it('sets the access and refresh cookies and returns no token', async () => {
     const instance = await setup();
 
     const response = await instance.inject({ method: 'POST', url: URL, payload: VALID_BODY });
 
     expect(response.statusCode).toBe(200);
-    expect(response.json()).toEqual({
-      userId: 'user-1',
-      email: VALID_BODY.email,
-      accessToken: ACCESS_TOKEN,
-      refreshToken: REFRESH_TOKEN,
-      expiresIn: 60,
-    });
+    expect(response.json()).toEqual({ userId: 'user-1', email: VALID_BODY.email });
+    expect(response.body).not.toContain(ACCESS_TOKEN);
+    expect(response.body).not.toContain(REFRESH_TOKEN);
 
     const access = response.cookies.find((cookie) => cookie.name === 'gridx_access');
     const refresh = response.cookies.find((cookie) => cookie.name === 'gridx_refresh');
@@ -82,6 +78,42 @@ describe('POST /api/v1/auth/login', () => {
       secure: true,
       sameSite: 'Lax',
     });
+  });
+
+  it('returns the tokens in the body and sets no cookie for a mobile client', async () => {
+    const instance = await setup();
+
+    const response = await instance.inject({
+      method: 'POST',
+      url: URL,
+      headers: { 'x-client-type': 'mobile' },
+      payload: VALID_BODY,
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({
+      userId: 'user-1',
+      email: VALID_BODY.email,
+      accessToken: ACCESS_TOKEN,
+      refreshToken: REFRESH_TOKEN,
+      expiresIn: 60,
+    });
+    expect(response.headers['set-cookie']).toBeUndefined();
+  });
+
+  it('treats an unknown client type as a browser', async () => {
+    const instance = await setup();
+
+    const response = await instance.inject({
+      method: 'POST',
+      url: URL,
+      headers: { 'x-client-type': 'Mobile ' },
+      payload: VALID_BODY,
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.body).not.toContain(REFRESH_TOKEN);
+    expect(response.cookies.map((cookie) => cookie.name)).toContain('gridx_refresh');
   });
 
   it('uses the configured SameSite and domain', async () => {
