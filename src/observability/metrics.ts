@@ -78,6 +78,26 @@ export function createMetrics() {
     registers: [registry],
   });
 
+  const wsEvents = new Counter({
+    name: 'gateway_ws_events_total',
+    help: 'Events published to WebSocket topics on this instance, by topic type and event.',
+    labelNames: ['topic_type', 'event'] as const,
+    registers: [registry],
+  });
+
+  const iotLiveUpstreams = new Gauge({
+    name: 'gateway_iot_live_upstreams',
+    help: 'Open StreamHouseLive streams to the IoT service (one per watched house).',
+    registers: [registry],
+  });
+
+  const iotLiveUpstreamRestarts = new Counter({
+    name: 'gateway_iot_live_upstream_restarts_total',
+    help: 'StreamHouseLive streams reopened, by reason (deadline, ended, error).',
+    labelNames: ['reason'] as const,
+    registers: [registry],
+  });
+
   return {
     registry,
     httpRequests,
@@ -90,6 +110,9 @@ export function createMetrics() {
     wsConnections,
     wsSubscriptions,
     wsCloses,
+    wsEvents,
+    iotLiveUpstreams,
+    iotLiveUpstreamRestarts,
   };
 }
 

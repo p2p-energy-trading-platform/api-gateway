@@ -28,6 +28,11 @@ export const testConfig: AppConfig = {
     maxConnectionAgeMs: 900_000,
   },
 
+  iotLive: {
+    streamTimeoutMs: 1_800_000,
+    idleGraceMs: 10_000,
+  },
+
   cookies: {
     secure: true,
     sameSite: 'lax',

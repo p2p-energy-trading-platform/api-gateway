@@ -76,6 +76,32 @@ a topic that is not subscribed, succeeds and changes nothing.
 | Topic | Who may subscribe | Events |
 |---|---|---|
 | `user.self` | Any signed-in user; always means the user on the ticket | Reserved for user events; nothing publishes yet |
+| `iot.house.<houseId>` | The house's owner (an approved meter registration), checked with the IoT service on every subscribe | `reading`, `status`, `stream-state` (below) |
+
+### `iot.house.<houseId>` events
+
+```json
+{ "type": "event", "topic": "iot.house.grid01-house0003", "event": "reading", "version": 1, "timestamp": "…",
+  "payload": { "meterId": "SM-784", "measuredAt": "2026-11-20T09:30:05.000Z", "seq": 4182,
+               "solarKw": 1.42, "consumptionKw": 0.86, "netKw": 0.31,
+               "storageAssets": [{ "assetId": "bat-1", "assetType": "bess", "socPct": 63, "powerKw": 0.25, "capacityKwh": 5.16 }] } }
+
+{ "type": "event", "topic": "iot.house.grid01-house0003", "event": "status", "version": 1, "timestamp": "…",
+  "payload": { "meterStatus": "online", "lastHeartbeatAt": "2026-11-20T09:30:00.000Z" } }
+
+{ "type": "event", "topic": "iot.house.grid01-house0003", "event": "stream-state", "version": 1, "timestamp": "…",
+  "payload": { "state": "interrupted" } }
+```
+
+| Event | Payload | Notes |
+|---|---|---|
+| `reading` | Exactly the `GET /api/v1/iot/houses/{houseId}/latest-reading` response | About every 5 s. Ignore a reading older than the one you hold (compare `measuredAt`, then `seq`). |
+| `status` | `meterStatus` (`online` or `offline`) and, when online, `lastHeartbeatAt` | Sent when the meter comes online or goes offline. |
+| `stream-state` | `state`: `interrupted` or `live` | The gateway lost its feed from the IoT service and is retrying (`interrupted`), or has it back (`live`). Show data as possibly stale meanwhile. |
+
+After `subscribed`, and after `stream-state` `live`, refetch the latest reading and the
+house over REST: events are not replayed. The first events after subscribing may repeat
+the current status and reading.
 
 Features add topics by registering a topic provider (see below). An unknown topic and
 a topic the user may not see get the same `TOPIC_NOT_ALLOWED` reply, so clients
