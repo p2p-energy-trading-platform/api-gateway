@@ -180,7 +180,6 @@ export async function logoutHandler(
   request: FastifyRequest,
   reply: FastifyReply,
 ): Promise<FastifyReply> {
-  
   if (isMobileClient(request)) {
     const refreshToken = readBodyRefreshToken(request);
 
