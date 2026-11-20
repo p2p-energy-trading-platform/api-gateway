@@ -9,10 +9,15 @@ import type { AppConfig } from '../config/types.js';
 import { AppError } from '../errors/app-error.js';
 import { CloseCode, websocketLimits, type WebsocketLimits } from '../policies/websocket.js';
 import { consumeWsTicket } from '../transport/redis/ws-tickets.js';
-import { ClientConnection, type WebsocketUser } from '../websocket/connection.js';
+import {
+  ClientConnection,
+  connectionLifetimeMs,
+  type WebsocketUser,
+} from '../websocket/connection.js';
 import { startHeartbeat } from '../websocket/heartbeat.js';
 import { errorMessage, parseClientMessage, type ParseResult } from '../websocket/protocol.js';
 import { SubscriptionManager } from '../websocket/subscriptions.js';
+import type { TopicProvider } from '../websocket/topics.js';
 
 export interface WebsocketPluginOptions {
   config: AppConfig;
@@ -40,9 +45,12 @@ const websocketPlugin: FastifyPluginAsync<WebsocketPluginOptions> = async (app, 
 
   const connections = new Set<ClientConnection>();
   const connectionsPerUser = new Map<string, number>();
-  const subscriptions = new SubscriptionManager(limits, (delta) =>
-    app.metrics.wsSubscriptions.inc(delta),
+  const subscriptions = new SubscriptionManager(
+    limits,
+    (delta) => app.metrics.wsSubscriptions.inc(delta),
+    (error) => app.log.error({ err: error }, 'WebSocket topic hook failed'),
   );
+  const allowedOrigins = new Set(config.cors.origins);
 
   // Registered before @fastify/websocket, so it runs first: clients get 1001 ("server going
   // away, reconnect") instead of a close without a reason.
@@ -62,6 +70,8 @@ const websocketPlugin: FastifyPluginAsync<WebsocketPluginOptions> = async (app, 
   app.decorate('realtime', {
     publish: (topicKey: string, event: string, payload: unknown) =>
       subscriptions.publish(topicKey, event, payload),
+    registerTopicProvider: (provider: TopicProvider) =>
+      subscriptions.registerTopicProvider(provider),
     connectionCount: () => connections.size,
     limits,
   });
@@ -79,7 +89,11 @@ const websocketPlugin: FastifyPluginAsync<WebsocketPluginOptions> = async (app, 
     }
   }
 
-  function handleMessage(connection: ClientConnection, data: RawData, isBinary: boolean): void {
+  async function handleMessage(
+    connection: ClientConnection,
+    data: RawData,
+    isBinary: boolean,
+  ): Promise<void> {
     const result: ParseResult = isBinary
       ? { ok: false, id: undefined, message: 'Messages must be JSON.' }
       : parseClientMessage(toText(data));
@@ -98,10 +112,13 @@ const websocketPlugin: FastifyPluginAsync<WebsocketPluginOptions> = async (app, 
     const { message } = result;
     const reply =
       message.type === 'subscribe'
-        ? subscriptions.subscribe(connection, message.topic, message.id)
+        ? await subscriptions.subscribe(connection, message.topic, message.id)
         : subscriptions.unsubscribe(connection, message.topic, message.id);
 
-    connection.send(reply);
+    // null: the connection closed while the topic was being checked.
+    if (reply !== null) {
+      connection.send(reply);
+    }
   }
 
   app.get<{ Querystring: WsQuery }>(
@@ -115,6 +132,15 @@ const websocketPlugin: FastifyPluginAsync<WebsocketPluginOptions> = async (app, 
       preHandler: async (request) => {
         if (!request.ws) {
           throw new AppError('NOT_FOUND', 'Route not found.');
+        }
+
+        // Stops other websites from opening a socket in a signed-in user's browser. Checked before
+        // the ticket so a refused attempt does not use it up. Clients without an Origin header,
+        // such as mobile apps, are allowed; the ticket still authenticates them.
+        const { origin } = request.headers;
+
+        if (origin !== undefined && !allowedOrigins.has(origin)) {
+          throw new AppError('FORBIDDEN', 'WebSocket origin not allowed.');
         }
 
         let user: WebsocketUser | null;
@@ -147,17 +173,31 @@ const websocketPlugin: FastifyPluginAsync<WebsocketPluginOptions> = async (app, 
 
       connections.add(connection);
       app.metrics.wsConnections.inc();
+
+      // Past its maximum age the client must reconnect with a new ticket, which re-checks the login.
+      const expiry = setTimeout(
+        () => connection.close(CloseCode.REAUTHENTICATE, 'Reauthenticate'),
+        connectionLifetimeMs(config.websocket.maxConnectionAgeMs),
+      );
+
+      expiry.unref();
       request.log.info({ userId: user.userId }, 'WebSocket connected');
 
       socket.on('pong', () => {
         connection.isAlive = true;
       });
 
+      // One message at a time per connection, so replies keep the order of the messages.
       socket.on('message', (data, isBinary) => {
-        handleMessage(connection, data, isBinary);
+        connection
+          .enqueue(() => handleMessage(connection, data, isBinary))
+          .catch((error) => {
+            request.log.error({ err: error }, 'WebSocket message handling failed');
+          });
       });
 
       socket.on('close', (code) => {
+        clearTimeout(expiry);
         connections.delete(connection);
         subscriptions.removeAll(connection);
         releaseConnectionSlot(user.userId);

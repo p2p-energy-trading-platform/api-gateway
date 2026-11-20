@@ -56,6 +56,13 @@ export const envSchema = {
       default: 'http://localhost:5173',
     },
 
+    // The access-token lifetime: a WebSocket must reauthenticate this often (±10%).
+    WS_MAX_CONNECTION_AGE_MS: {
+      type: 'integer',
+      minimum: 60000,
+      default: 900000,
+    },
+
     COOKIE_SECURE: {
       type: 'boolean',
       default: true,

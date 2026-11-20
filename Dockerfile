@@ -4,7 +4,9 @@ WORKDIR /app
 
 COPY package.json package-lock.json ./
 
-RUN npm ci
+RUN apk add --no-cache git && \
+    git config --global url."https://github.com/".insteadOf "ssh://git@github.com/" && \
+    npm ci
 
 
 FROM node:24-alpine AS build
@@ -27,7 +29,9 @@ WORKDIR /app
 
 COPY package.json package-lock.json ./
 
-RUN npm ci --omit=dev && \
+RUN apk add --no-cache git && \
+    git config --global url."https://github.com/".insteadOf "ssh://git@github.com/" && \
+    npm ci --omit=dev && \
     npm cache clean --force
 
 COPY --from=build /app/dist ./dist

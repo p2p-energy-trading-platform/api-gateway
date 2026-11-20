@@ -23,4 +23,6 @@ export const CloseCode = {
   POLICY_VIOLATION: 1008,
   MESSAGE_TOO_BIG: 1009,
   TRY_AGAIN_LATER: 1013,
+  // Application code: reconnect now with a new ticket.
+  REAUTHENTICATE: 4001,
 } as const;
