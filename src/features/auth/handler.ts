@@ -28,9 +28,11 @@ import {
   mapMeResponse,
   mapProfileResponse,
   mapRegisterResponse,
+  mapSessionTokens,
 } from './mapper.js';
 import { AppError } from '../../errors/app-error.js';
-import { clearSessionCookies, readRefreshCredential, setSessionCookies } from './cookies.js';
+import { clearSessionCookies, readRefreshToken, setSessionCookies } from './cookies.js';
+import { isMobileClient, readBodyRefreshToken } from './client-type.js';
 
 export async function verifyEmailHandler(
   request: FastifyRequest<{ Body: VerifyEmailBody }>,
@@ -67,13 +69,15 @@ export async function registerHandler(
     grpcDeadlinesMs.authRegister,
   );
 
-  setSessionCookies(reply, request.server.config, {
-    accessToken: result.accessToken,
-    refreshToken: result.refreshToken,
-    expiresIn: Number(result.expiresIn),
-  });
-
   reply.code(201);
+
+  const tokens = mapSessionTokens(result);
+
+  if (isMobileClient(request)) {
+    return { ...mapRegisterResponse(result), ...tokens };
+  }
+
+  setSessionCookies(reply, request.server.config, tokens);
 
   return mapRegisterResponse(result);
 }
@@ -115,11 +119,13 @@ export async function loginHandler(
     grpcDeadlinesMs.authLogin,
   );
 
-  setSessionCookies(reply, request.server.config, {
-    accessToken: result.accessToken,
-    refreshToken: result.refreshToken,
-    expiresIn: Number(result.expiresIn),
-  });
+  const tokens = mapSessionTokens(result);
+
+  if (isMobileClient(request)) {
+    return { ...mapLoginResponse(result), ...tokens };
+  }
+
+  setSessionCookies(reply, request.server.config, tokens);
 
   return mapLoginResponse(result);
 }
@@ -128,31 +134,36 @@ export async function refreshHandler(
   request: FastifyRequest,
   reply: FastifyReply,
 ): Promise<RefreshResponse | void> {
-  const credential = readRefreshCredential(request);
+  // Mobile: token in and out through the JSON body. Mobile mode never reads the cookie.
+  if (isMobileClient(request)) {
+    const refreshToken = readBodyRefreshToken(request);
 
-  if (credential === undefined) {
+    if (refreshToken === undefined) {
+      throw new AppError('UNAUTHENTICATED', 'Missing refresh token.');
+    }
+
+    // auth-service rotates the refresh token: the old one is revoked and a new one is returned.
+    const result = await request.server.grpcClients.auth.refreshToken(
+      { refreshToken },
+      grpcDeadlinesMs.authRefresh,
+    );
+
+    return mapSessionTokens(result);
+  }
+
+  const refreshToken = readRefreshToken(request);
+
+  if (refreshToken === undefined) {
     throw new AppError('UNAUTHENTICATED', 'Missing refresh token.');
   }
 
   try {
-    // auth-service rotates the refresh token: the old one is revoked and a new one is returned.
     const result = await request.server.grpcClients.auth.refreshToken(
-      { refreshToken: credential.token },
+      { refreshToken },
       grpcDeadlinesMs.authRefresh,
     );
 
-    const tokens = {
-      accessToken: result.accessToken,
-      refreshToken: result.refreshToken,
-      expiresIn: Number(result.expiresIn),
-    };
-
-    if (credential.source === 'bearer') {
-      reply.code(200);
-      return tokens satisfies RefreshResponse;
-    }
-
-    setSessionCookies(reply, request.server.config, tokens);
+    setSessionCookies(reply, request.server.config, mapSessionTokens(result));
   } catch (error) {
     // A revoked or expired refresh token cannot be used again, so drop the cookies.
     if (error instanceof AppError && error.code === 'UNAUTHENTICATED') {
@@ -169,19 +180,27 @@ export async function logoutHandler(
   request: FastifyRequest,
   reply: FastifyReply,
 ): Promise<FastifyReply> {
-  const credential = readRefreshCredential(request);
+  
+  if (isMobileClient(request)) {
+    const refreshToken = readBodyRefreshToken(request);
 
-  if (credential?.source !== 'bearer') {
-    clearSessionCookies(reply, request.server.config);
+    if (refreshToken === undefined) {
+      throw new AppError('UNAUTHENTICATED', 'Missing refresh token.');
+    }
+
+    await request.server.grpcClients.auth.logout({ refreshToken }, grpcDeadlinesMs.authLogout);
+
+    return reply.code(204).send();
   }
 
-  if (credential !== undefined) {
+  const refreshToken = readRefreshToken(request);
+
+  clearSessionCookies(reply, request.server.config);
+
+  if (refreshToken !== undefined) {
     try {
       // Revokes the session in auth-service, so the refresh token can no longer be used.
-      await request.server.grpcClients.auth.logout(
-        { refreshToken: credential.token },
-        grpcDeadlinesMs.authLogout,
-      );
+      await request.server.grpcClients.auth.logout({ refreshToken }, grpcDeadlinesMs.authLogout);
     } catch (error) {
       // Already revoked or expired: the user is logged out either way.
       if (!(error instanceof AppError && error.code === 'UNAUTHENTICATED')) {
