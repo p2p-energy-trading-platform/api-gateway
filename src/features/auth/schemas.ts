@@ -2,6 +2,12 @@ import { Type, type Static } from 'typebox';
 
 import { emailSchema, strictObject } from '../../common/validation.js';
 
+const mobileTokenFields = {
+  accessToken: Type.Optional(Type.String()),
+  refreshToken: Type.Optional(Type.String()),
+  expiresIn: Type.Optional(Type.Integer()),
+};
+
 export const registerBodySchema = strictObject({
   name: Type.String({ minLength: 1, maxLength: 100, pattern: '\\S' }),
   email: emailSchema,
@@ -13,6 +19,7 @@ export const registerResponseSchema = strictObject({
   email: Type.String(),
   status: Type.String(),
   createdAt: Type.String({ format: 'date-time' }),
+  ...mobileTokenFields,
 });
 
 export type RegisterBody = Static<typeof registerBodySchema>;
@@ -51,6 +58,13 @@ export const loginBodySchema = strictObject({
 export const loginResponseSchema = strictObject({
   userId: Type.String(),
   email: Type.String(),
+  ...mobileTokenFields,
+});
+
+export const refreshResponseSchema = strictObject({
+  accessToken: Type.String(),
+  refreshToken: Type.String(),
+  expiresIn: Type.Integer(),
 });
 
 export const meResponseSchema = strictObject({
@@ -67,6 +81,7 @@ export const meResponseSchema = strictObject({
 export type LoginBody = Static<typeof loginBodySchema>;
 
 export type LoginResponse = Static<typeof loginResponseSchema>;
+export type RefreshResponse = Static<typeof refreshResponseSchema>;
 
 export type MeResponse = Static<typeof meResponseSchema>;
 

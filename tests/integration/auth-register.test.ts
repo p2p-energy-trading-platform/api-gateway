@@ -20,6 +20,9 @@ function registerSucceeds(email: string) {
     email,
     status: 'active',
     createdAtTime: timestampFromDate(new Date('2026-10-06T10:00:00Z')),
+    accessToken: 'access-token-for-test',
+    refreshToken: 'refresh-token-for-test',
+    expiresIn: 900n,
   };
 }
 
@@ -81,7 +84,35 @@ describe('POST /api/v1/auth/register', () => {
       status: 'active',
       createdAt: '2026-10-06T10:00:00.000Z',
     });
+    expect(response.body).not.toContain('refresh-token-for-test');
+    expect(response.cookies.map((cookie) => cookie.name).toSorted()).toEqual([
+      'gridx_access',
+      'gridx_refresh',
+    ]);
     expect(received).toEqual([VALID_BODY]);
+  });
+
+  it('returns the tokens in the body and sets no cookie for a mobile client', async () => {
+    const instance = await setup(registerSucceeds);
+
+    const response = await instance.inject({
+      method: 'POST',
+      url: URL,
+      headers: { 'x-client-type': 'mobile' },
+      payload: VALID_BODY,
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(response.json()).toEqual({
+      userId: 'user-1',
+      email: 'new@example.com',
+      status: 'active',
+      createdAt: '2026-10-06T10:00:00.000Z',
+      accessToken: 'access-token-for-test',
+      refreshToken: 'refresh-token-for-test',
+      expiresIn: 900,
+    });
+    expect(response.headers['set-cookie']).toBeUndefined();
   });
 
   it('trims the name before calling auth-service', async () => {

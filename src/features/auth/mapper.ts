@@ -7,6 +7,7 @@ import { mapKycState } from '../../common/mapper.js';
 import type { RegisterResponse } from './schemas.js';
 import type { LoginResponse, MeResponse } from './schemas.js';
 import { timestampDate } from '@bufbuild/protobuf/wkt';
+import type { SessionTokens } from './cookies.js';
 
 export function mapRegisterResponse(result: GrpcRegisterResponse): RegisterResponse {
   return {
@@ -21,6 +22,18 @@ export function mapRegisterResponse(result: GrpcRegisterResponse): RegisterRespo
 
 export function mapLoginResponse(result: { userId: string; email: string }): LoginResponse {
   return { userId: result.userId, email: result.email };
+}
+
+export function mapSessionTokens(result: {
+  accessToken: string;
+  refreshToken: string;
+  expiresIn: bigint | number;
+}): SessionTokens {
+  return {
+    accessToken: result.accessToken,
+    refreshToken: result.refreshToken,
+    expiresIn: Number(result.expiresIn),
+  };
 }
 
 export function mapMeResponse(result: GetUserResponse): MeResponse {
