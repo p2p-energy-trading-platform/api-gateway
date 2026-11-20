@@ -65,10 +65,8 @@ describe('WebSocket', () => {
   let jwks: FakeJwks;
   const sockets: WebSocket[] = [];
 
-  beforeEach(async () => {
-    jwks = await startFakeJwks();
-
-    app = await buildApp({
+  async function startApp(websocket = testConfig.websocket): Promise<FastifyInstance> {
+    const instance = await buildApp({
       config: {
         ...testConfig,
         auth: {
@@ -78,11 +76,19 @@ describe('WebSocket', () => {
           jwksUri: jwks.url,
         },
         rateLimit: { hashSecret: randomUUID() },
+        websocket,
       },
       registerInfrastructure: true,
     });
 
-    await app.ready();
+    await instance.ready();
+
+    return instance;
+  }
+
+  beforeEach(async () => {
+    jwks = await startFakeJwks();
+    app = await startApp();
   });
 
   afterEach(async () => {
@@ -107,8 +113,11 @@ describe('WebSocket', () => {
     return response.json().ticket as string;
   }
 
-  async function connect(ticket: string): Promise<WebSocket> {
-    const socket = await app.injectWS(`/api/v1/ws?ticket=${ticket}`, CLIENT);
+  async function connect(ticket: string, origin?: string): Promise<WebSocket> {
+    const socket = await app.injectWS(
+      `/api/v1/ws?ticket=${ticket}`,
+      origin === undefined ? CLIENT : { ...CLIENT, headers: { origin } },
+    );
 
     sockets.push(socket);
 
@@ -196,6 +205,17 @@ describe('WebSocket', () => {
       const response = await app.inject({ method: 'GET', url: `/api/v1/ws?ticket=${ticket}` });
 
       expect(response.statusCode).toBe(404);
+      await expect(connect(ticket)).resolves.toBeDefined();
+    });
+
+    it('accepts a browser on an allowed origin', async () => {
+      await expect(connect(await getTicket(), 'http://localhost:5173')).resolves.toBeDefined();
+    });
+
+    it('refuses a browser on another origin with 403, without using up the ticket', async () => {
+      const ticket = await getTicket();
+
+      await expect(connect(ticket, 'https://evil.example')).rejects.toThrow('403');
       await expect(connect(ticket)).resolves.toBeDefined();
     });
 
@@ -358,7 +378,113 @@ describe('subscriptions', () => {
     // });
   });
 
+  describe('topic providers', () => {
+    const HOUSE = 'iot.house.h1';
+
+    // Lets user-a watch any house; "iot.house.down" cannot be checked.
+    function registerHouseProvider(delays: Record<string, Promise<void>> = {}) {
+      const calls: string[] = [];
+
+      app.realtime.registerTopicProvider({
+        matches: (topic) => topic.startsWith('iot.house.'),
+        authorize: async (topic, user) => {
+          await delays[topic];
+
+          if (topic === 'iot.house.down') {
+            throw new Error('IoT service unavailable');
+          }
+
+          return user.userId === 'user-a' ? topic : null;
+        },
+        onActive: (key) => calls.push(`active:${key}`),
+        onIdle: (key) => calls.push(`idle:${key}`),
+      });
+
+      return calls;
+    }
+
+    it('subscribes an allowed user and forwards events for the topic', async () => {
+      const calls = registerHouseProvider();
+      const socket = await connectAs('user-a');
+
+      expect(await send(socket, { type: 'subscribe', id: '1', topic: HOUSE })).toMatchObject({
+        type: 'subscribed',
+        id: '1',
+        topic: HOUSE,
+      });
+      expect(calls).toEqual([`active:${HOUSE}`]);
+
+      const event = nextMessage(socket);
+
+      expect(app.realtime.publish(HOUSE, 'reading', { seq: 7 })).toBe(1);
+      expect(await event).toMatchObject({
+        type: 'event',
+        topic: HOUSE,
+        event: 'reading',
+        payload: { seq: 7 },
+      });
+    });
+
+    it('refuses a user the provider does not allow', async () => {
+      registerHouseProvider();
+      const socket = await connectAs('user-b');
+
+      expect(await send(socket, { type: 'subscribe', id: '1', topic: HOUSE })).toMatchObject({
+        type: 'error',
+        id: '1',
+        code: 'TOPIC_NOT_ALLOWED',
+      });
+    });
+
+    it('answers TOPIC_UNAVAILABLE when the check fails', async () => {
+      registerHouseProvider();
+      const socket = await connectAs('user-a');
+
+      expect(
+        await send(socket, { type: 'subscribe', id: '1', topic: 'iot.house.down' }),
+      ).toMatchObject({ type: 'error', id: '1', code: 'TOPIC_UNAVAILABLE' });
+    });
+
+    it('replies in message order even when an earlier check is slow', async () => {
+      let release!: () => void;
+      registerHouseProvider({ [HOUSE]: new Promise<void>((resolve) => (release = resolve)) });
+      const socket = await connectAs('user-a');
+      const replies: Message[] = [];
+
+      socket.on('message', (data) => replies.push(JSON.parse(String(data)) as Message));
+      socket.send(JSON.stringify({ type: 'subscribe', id: 'slow', topic: HOUSE }));
+      socket.send(JSON.stringify({ type: 'subscribe', id: 'fast', topic: 'user.self' }));
+
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      expect(replies).toEqual([]);
+
+      release();
+      await waitFor(() => replies.length === 2);
+      expect(replies.map((reply) => reply.id)).toEqual(['slow', 'fast']);
+    });
+
+    it('calls onIdle when the last subscriber leaves', async () => {
+      const calls = registerHouseProvider();
+      const socket = await connectOverNetwork('user-a');
+
+      await send(socket, { type: 'subscribe', id: '1', topic: HOUSE });
+      socket.close();
+      await waitFor(() => calls.length === 2);
+
+      expect(calls).toEqual([`active:${HOUSE}`, `idle:${HOUSE}`]);
+    });
+  });
+
   describe('closing', () => {
+    it('asks the client to reauthenticate with 4001 at the maximum connection age', async () => {
+      await app.close();
+      app = await startApp({ maxConnectionAgeMs: 100 });
+
+      const socket = await connectAs();
+
+      expect(await closeCode(socket)).toBe(4001);
+    });
+
     // it('removes subscriptions and updates metrics when a client leaves', async () => {
     //   const socket = await connectOverNetwork();
 

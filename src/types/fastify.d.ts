@@ -11,6 +11,7 @@ import type { RouteAuthPolicy } from '../policies/route-auth.ts';
 import type { RateLimitPolicyName } from '../policies/rate-limits.ts';
 import type { WebsocketLimits } from '../policies/websocket.ts';
 import type { WebsocketUser } from '../websocket/connection.ts';
+import type { TopicProvider } from '../websocket/topics.ts';
 
 declare module '@fastify/request-context' {
   interface RequestContextData {
@@ -27,6 +28,8 @@ declare module 'fastify' {
     realtime: {
       // Sends an event to every local connection subscribed to the topic key.
       publish(topicKey: string, event: string, payload: unknown): number;
+      // Lets a feature offer its own topics, such as iot.house.<houseId>.
+      registerTopicProvider(provider: TopicProvider): void;
       connectionCount(): number;
       limits: WebsocketLimits;
     };

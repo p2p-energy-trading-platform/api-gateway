@@ -3,7 +3,8 @@ import { Type, type Static } from 'typebox';
 import { strictObject } from '../common/validation.js';
 
 const messageId = Type.String({ minLength: 1, maxLength: 64 });
-const topic = Type.String({ minLength: 1, maxLength: 100 });
+// Long enough for `iot.house.<houseId>` with a house ID of up to 100 characters.
+const topic = Type.String({ minLength: 1, maxLength: 120 });
 const emptyPayload = Type.Optional(strictObject({}));
 
 export const subscribeMessageSchema = strictObject({

@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { CloseCode } from '../../../src/policies/websocket.js';
+import type { TopicProvider } from '../../../src/websocket/topics.js';
 import {
   resolveTopicKey,
   topicNameForKey,
@@ -8,6 +9,7 @@ import {
 } from '../../../src/websocket/authorization.js';
 import {
   ClientConnection,
+  connectionLifetimeMs,
   type ConnectionSocket,
 } from '../../../src/websocket/connection.js';
 import {
@@ -102,6 +104,17 @@ describe('parseClientMessage', () => {
     });
   });
 
+  it('accepts topics up to 120 characters', () => {
+    const topic = `iot.house.${'h'.repeat(110)}`;
+
+    expect(
+      parseClientMessage(JSON.stringify({ type: 'subscribe', id: 'm6', topic })),
+    ).toMatchObject({ ok: true });
+    expect(
+      parseClientMessage(JSON.stringify({ type: 'subscribe', id: 'm7', topic: `${topic}x` })),
+    ).toMatchObject({ ok: false, message: 'Invalid message.' });
+  });
+
   it('does not echo an oversized message id', () => {
     const raw = JSON.stringify({
       type: 'nope',
@@ -141,7 +154,7 @@ describe('topic authorization', () => {
 });
 
 describe('SubscriptionManager', () => {
-  it('delivers user events only to that user', () => {
+  it('delivers user events only to that user', async () => {
     const manager = new SubscriptionManager({
       maxSubscriptionsPerConnection: 20,
     });
@@ -149,8 +162,8 @@ describe('SubscriptionManager', () => {
     const a = makeConnection('user-a');
     const b = makeConnection('user-b');
 
-    manager.subscribe(a.connection, 'user.self', '1');
-    manager.subscribe(b.connection, 'user.self', '1');
+    await manager.subscribe(a.connection, 'user.self', '1');
+    await manager.subscribe(b.connection, 'user.self', '1');
 
     expect(
       manager.publish(
@@ -171,7 +184,7 @@ describe('SubscriptionManager', () => {
     expect(b.socket.sent).toEqual([]);
   });
 
-  it('enforces the subscription limit, counting each topic once', () => {
+  it('enforces the subscription limit, counting each topic once', async () => {
     const manager = new SubscriptionManager({
       maxSubscriptionsPerConnection: 1,
     });
@@ -179,25 +192,25 @@ describe('SubscriptionManager', () => {
     const { connection } = makeConnection();
 
     expect(
-      manager.subscribe(connection, 'user.self', '1'),
+      await manager.subscribe(connection, 'user.self', '1'),
     ).toMatchObject({
       type: 'subscribed',
     });
 
     expect(
-      manager.subscribe(connection, 'user.self', '2'),
+      await manager.subscribe(connection, 'user.self', '2'),
     ).toMatchObject({
       type: 'subscribed',
     });
 
     expect(
-      manager.subscribe(connection, 'user.self', '3'),
+      await manager.subscribe(connection, 'user.self', '3'),
     ).toMatchObject({
       type: 'subscribed',
     });
   });
 
-  it('stops delivery after unsubscribe and removeAll', () => {
+  it('stops delivery after unsubscribe and removeAll', async () => {
     const changes: number[] = [];
 
     const manager = new SubscriptionManager(
@@ -207,7 +220,7 @@ describe('SubscriptionManager', () => {
 
     const { connection } = makeConnection();
 
-    manager.subscribe(connection, 'user.self', '1');
+    await manager.subscribe(connection, 'user.self', '1');
 
     manager.unsubscribe(connection, 'user.self', '2');
 
@@ -219,7 +232,7 @@ describe('SubscriptionManager', () => {
       ),
     ).toBe(0);
 
-    manager.subscribe(connection, 'user.self', '3');
+    await manager.subscribe(connection, 'user.self', '3');
     manager.removeAll(connection);
 
     expect(
@@ -306,5 +319,259 @@ describe('heartbeat', () => {
     vi.advanceTimersByTime(60_000);
 
     expect(socket.pings).toBe(1);
+  });
+});
+
+// Resolves when the test calls the matching resolve/reject, so pending checks can be observed.
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (error: unknown) => void;
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+
+  return { promise, resolve, reject };
+}
+
+const HOUSE_TOPIC = 'iot.house.h1';
+
+// A provider for "iot.house.*" topics that lets user-a watch any house.
+function houseProvider(overrides: Partial<TopicProvider> = {}) {
+  const calls: string[] = [];
+  const provider: TopicProvider = {
+    matches: (topic) => topic.startsWith('iot.house.'),
+    authorize: async (topic, user) => (user.userId === 'user-a' ? topic : null),
+    onActive: (key) => calls.push(`active:${key}`),
+    onIdle: (key) => calls.push(`idle:${key}`),
+    ...overrides,
+  };
+
+  return { provider, calls };
+}
+
+function managerWith(provider: TopicProvider, onHookError?: (error: unknown) => void) {
+  const manager = new SubscriptionManager(
+    { maxSubscriptionsPerConnection: 20 },
+    () => {},
+    onHookError,
+  );
+
+  manager.registerTopicProvider(provider);
+
+  return manager;
+}
+
+describe('topic providers', () => {
+  it('subscribes when the provider allows the topic, and delivers its events', async () => {
+    const manager = managerWith(houseProvider().provider);
+    const { socket, connection } = makeConnection('user-a');
+
+    expect(await manager.subscribe(connection, HOUSE_TOPIC, '1')).toMatchObject({
+      type: 'subscribed',
+      id: '1',
+      topic: HOUSE_TOPIC,
+    });
+    expect(manager.publish(HOUSE_TOPIC, 'reading', { seq: 1 })).toBe(1);
+    expect(socket.sent).toEqual([
+      expect.objectContaining({ type: 'event', topic: HOUSE_TOPIC, event: 'reading' }),
+    ]);
+  });
+
+  it('refuses the topic when the provider does not allow it', async () => {
+    const manager = managerWith(houseProvider().provider);
+    const { connection } = makeConnection('user-b');
+
+    expect(await manager.subscribe(connection, HOUSE_TOPIC, '1')).toMatchObject({
+      type: 'error',
+      id: '1',
+      code: 'TOPIC_NOT_ALLOWED',
+    });
+    expect(manager.publish(HOUSE_TOPIC, 'reading', {})).toBe(0);
+  });
+
+  it('answers TOPIC_UNAVAILABLE when the check cannot run', async () => {
+    const manager = managerWith(
+      houseProvider({
+        authorize: async () => {
+          throw new Error('IoT service unavailable');
+        },
+      }).provider,
+    );
+    const { connection } = makeConnection('user-a');
+
+    expect(await manager.subscribe(connection, HOUSE_TOPIC, '1')).toMatchObject({
+      type: 'error',
+      id: '1',
+      code: 'TOPIC_UNAVAILABLE',
+    });
+  });
+
+  it('refuses topics no provider handles', async () => {
+    const manager = managerWith(houseProvider().provider);
+    const { connection } = makeConnection('user-a');
+
+    expect(await manager.subscribe(connection, 'market.summary', '1')).toMatchObject({
+      code: 'TOPIC_NOT_ALLOWED',
+    });
+  });
+
+  it('does not ask the provider again for a topic already subscribed', async () => {
+    let checks = 0;
+    const manager = managerWith(
+      houseProvider({
+        authorize: async (topic) => {
+          checks += 1;
+          return topic;
+        },
+      }).provider,
+    );
+    const { connection } = makeConnection('user-a');
+
+    await manager.subscribe(connection, HOUSE_TOPIC, '1');
+    expect(await manager.subscribe(connection, HOUSE_TOPIC, '2')).toMatchObject({
+      type: 'subscribed',
+      id: '2',
+    });
+    expect(checks).toBe(1);
+  });
+
+  it('enforces the subscription limit before asking the provider', async () => {
+    let checks = 0;
+    const manager = new SubscriptionManager({ maxSubscriptionsPerConnection: 1 });
+    manager.registerTopicProvider(
+      houseProvider({
+        authorize: async (topic) => {
+          checks += 1;
+          return topic;
+        },
+      }).provider,
+    );
+    const { connection } = makeConnection('user-a');
+
+    await manager.subscribe(connection, 'iot.house.h1', '1');
+    expect(await manager.subscribe(connection, 'iot.house.h2', '2')).toMatchObject({
+      code: 'TOO_MANY_SUBSCRIPTIONS',
+    });
+    expect(checks).toBe(1);
+  });
+
+  it('drops the result when the connection closed during the check', async () => {
+    const pending = deferred<string | null>();
+    const { provider, calls } = houseProvider({ authorize: () => pending.promise });
+    const manager = managerWith(provider);
+    const { socket, connection } = makeConnection('user-a');
+
+    const reply = manager.subscribe(connection, HOUSE_TOPIC, '1');
+    socket.close();
+    manager.removeAll(connection);
+    pending.resolve(HOUSE_TOPIC);
+
+    expect(await reply).toBeNull();
+    expect(connection.topics.size).toBe(0);
+    expect(manager.publish(HOUSE_TOPIC, 'reading', {})).toBe(0);
+    expect(calls).toEqual([]);
+  });
+
+  it('calls onActive for the first local subscriber and onIdle when the last one leaves', async () => {
+    const { provider, calls } = houseProvider();
+    const manager = managerWith(provider);
+    const first = makeConnection('user-a');
+    const second = makeConnection('user-a');
+
+    await manager.subscribe(first.connection, HOUSE_TOPIC, '1');
+    await manager.subscribe(second.connection, HOUSE_TOPIC, '1');
+    expect(calls).toEqual([`active:${HOUSE_TOPIC}`]);
+
+    manager.unsubscribe(first.connection, HOUSE_TOPIC, '2');
+    expect(calls).toEqual([`active:${HOUSE_TOPIC}`]);
+
+    manager.removeAll(second.connection);
+    expect(calls).toEqual([`active:${HOUSE_TOPIC}`, `idle:${HOUSE_TOPIC}`]);
+
+    await manager.subscribe(first.connection, HOUSE_TOPIC, '3');
+    expect(calls).toEqual([
+      `active:${HOUSE_TOPIC}`,
+      `idle:${HOUSE_TOPIC}`,
+      `active:${HOUSE_TOPIC}`,
+    ]);
+  });
+
+  it('reports a failing hook instead of breaking the subscription', async () => {
+    const errors: unknown[] = [];
+    const manager = managerWith(
+      houseProvider({
+        onActive: () => {
+          throw new Error('upstream failed');
+        },
+        onIdle: () => {
+          throw new Error('close failed');
+        },
+      }).provider,
+      (error) => errors.push(error),
+    );
+    const { connection } = makeConnection('user-a');
+
+    expect(await manager.subscribe(connection, HOUSE_TOPIC, '1')).toMatchObject({
+      type: 'subscribed',
+    });
+    expect(manager.publish(HOUSE_TOPIC, 'reading', {})).toBe(1);
+    manager.removeAll(connection);
+
+    expect(errors).toHaveLength(2);
+    expect(manager.publish(HOUSE_TOPIC, 'reading', {})).toBe(0);
+  });
+
+  it('keeps user.self on the built-in path even with providers registered', async () => {
+    const manager = managerWith(
+      houseProvider({ matches: () => true, authorize: async () => null }).provider,
+    );
+    const { connection } = makeConnection('user-a');
+
+    expect(await manager.subscribe(connection, 'user.self', '1')).toMatchObject({
+      type: 'subscribed',
+    });
+  });
+});
+
+describe('ClientConnection.enqueue', () => {
+  it('runs tasks one at a time in the order they arrived', async () => {
+    const { connection } = makeConnection();
+    const order: string[] = [];
+    const slow = deferred<void>();
+
+    const first = connection.enqueue(async () => {
+      await slow.promise;
+      order.push('first');
+    });
+    const second = connection.enqueue(async () => {
+      order.push('second');
+    });
+
+    await Promise.resolve();
+    expect(order).toEqual([]);
+
+    slow.resolve();
+    await Promise.all([first, second]);
+    expect(order).toEqual(['first', 'second']);
+  });
+
+  it('keeps going after a task fails', async () => {
+    const { connection } = makeConnection();
+
+    await expect(
+      connection.enqueue(async () => {
+        throw new Error('boom');
+      }),
+    ).rejects.toThrow('boom');
+    await expect(connection.enqueue(async () => 'ok')).resolves.toBe('ok');
+  });
+});
+
+describe('maximum connection age', () => {
+  it('spreads lifetimes within 10% either side of the maximum age', () => {
+    expect(connectionLifetimeMs(900_000, () => 0)).toBe(810_000);
+    expect(connectionLifetimeMs(900_000, () => 0.5)).toBe(900_000);
+    expect(connectionLifetimeMs(900_000, () => 1)).toBe(990_000);
   });
 });
