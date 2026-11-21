@@ -15,6 +15,8 @@ interface RawEnvironment {
   REQUEST_TIMEOUT_MS: number;
   CORS_ORIGINS: string;
   WS_MAX_CONNECTION_AGE_MS: number;
+  IOT_LIVE_STREAM_TIMEOUT_MS: number;
+  IOT_LIVE_IDLE_GRACE_MS: number;
   COOKIE_SECURE: boolean;
   COOKIE_SAME_SITE: CookieSameSite;
   COOKIE_DOMAIN?: string;
@@ -239,6 +241,11 @@ export function loadConfig(): AppConfig {
 
     websocket: {
       maxConnectionAgeMs: env.WS_MAX_CONNECTION_AGE_MS,
+    },
+
+    iotLive: {
+      streamTimeoutMs: env.IOT_LIVE_STREAM_TIMEOUT_MS,
+      idleGraceMs: env.IOT_LIVE_IDLE_GRACE_MS,
     },
 
     cookies: {

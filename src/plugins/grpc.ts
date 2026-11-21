@@ -42,6 +42,10 @@ const grpcPlugin: FastifyPluginAsync = fp(async (fastify) => {
   const iotTransport = createGrpcTransport({
     baseUrl: fastify.config.grpc.iotServiceUrl,
     ...(tlsOptions ? { nodeOptions: tlsOptions } : {}),
+    // Live streams can be quiet for minutes; pings find a dead connection within 40 seconds.
+    // iot-ingestion-dispatch allows pings every 20 seconds.
+    pingIntervalMs: 30_000,
+    pingTimeoutMs: 10_000,
     interceptors: [
       createHeaderPropagationInterceptor(() => {
         // Retrieve current context from request store if available
