@@ -4,6 +4,9 @@ import type { FastifyInstance } from 'fastify';
 import {
   googleCallbackHandler,
   googleCallbackQuerySchema,
+  googleMobileExchangeBodySchema,
+  googleMobileExchangeHandler,
+  googleMobileExchangeResponseSchema,
   googleStartHandler,
   googleStartQuerySchema,
 } from './google.js';
@@ -67,6 +70,19 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
       schema: { querystring: googleCallbackQuerySchema },
     },
     googleCallbackHandler,
+  );
+
+  // Mobile only: trades the one-time handoff code from the app deep link for tokens.
+  router.post(
+    '/api/v1/auth/google/mobile/exchange',
+    {
+      config: { rateLimit: 'auth-google-exchange', auth: 'public' },
+      schema: {
+        body: googleMobileExchangeBodySchema,
+        response: { 200: googleMobileExchangeResponseSchema },
+      },
+    },
+    googleMobileExchangeHandler,
   );
 
   router.post(
