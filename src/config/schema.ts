@@ -227,5 +227,9 @@ export const envSchema = {
     FRONTEND_BASE_URL: {
       type: 'string',
     },
+
+    MOBILE_OAUTH_REDIRECT_URI: {
+      type: 'string',
+    },
   },
 } as const;
