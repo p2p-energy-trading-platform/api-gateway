@@ -87,6 +87,7 @@ export interface AppConfig {
         clientId: string;
         redirectUri: string;
         frontendBaseUrl: string;
+        mobileRedirectUri?: string;
       }
     | undefined;
 }

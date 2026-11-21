@@ -45,6 +45,7 @@ interface RawEnvironment {
   GOOGLE_CLIENT_ID?: string;
   GOOGLE_OAUTH_REDIRECT_URI?: string;
   FRONTEND_BASE_URL?: string;
+  MOBILE_OAUTH_REDIRECT_URI?: string;
 }
 
 const SUPPORTED_JWT_ALGORITHMS = ['EdDSA', 'ES256', 'RS256'];
@@ -152,15 +153,26 @@ export function parseAllowedAlgorithms(raw: string): string[] {
 export function parseGoogleOAuthConfig(
   env: Pick<
     RawEnvironment,
-    'GOOGLE_CLIENT_ID' | 'GOOGLE_OAUTH_REDIRECT_URI' | 'FRONTEND_BASE_URL' | 'NODE_ENV'
+    | 'GOOGLE_CLIENT_ID'
+    | 'GOOGLE_OAUTH_REDIRECT_URI'
+    | 'FRONTEND_BASE_URL'
+    | 'MOBILE_OAUTH_REDIRECT_URI'
+    | 'NODE_ENV'
   >,
   corsOrigins: string[],
 ): AppConfig['googleOAuth'] {
   const clientId = env.GOOGLE_CLIENT_ID?.trim() ?? '';
   const redirectUri = env.GOOGLE_OAUTH_REDIRECT_URI?.trim() ?? '';
   const frontendBaseUrl = env.FRONTEND_BASE_URL?.trim() ?? '';
+  const mobileRedirectUri = env.MOBILE_OAUTH_REDIRECT_URI?.trim() ?? '';
 
   if (!clientId && !redirectUri && !frontendBaseUrl) {
+    if (mobileRedirectUri) {
+      throw new Error(
+        'MOBILE_OAUTH_REDIRECT_URI requires GOOGLE_CLIENT_ID, GOOGLE_OAUTH_REDIRECT_URI and FRONTEND_BASE_URL.',
+      );
+    }
+
     return undefined;
   }
 
@@ -192,7 +204,39 @@ export function parseGoogleOAuthConfig(
     throw new Error(`FRONTEND_BASE_URL must be one of CORS_ORIGINS: "${frontendBaseUrl}".`);
   }
 
-  return { clientId, redirectUri, frontendBaseUrl: frontendOrigin };
+  return {
+    clientId,
+    redirectUri,
+    frontendBaseUrl: frontendOrigin,
+    ...(mobileRedirectUri
+      ? { mobileRedirectUri: parseMobileRedirectUri(mobileRedirectUri, env.NODE_ENV) }
+      : {}),
+  };
+}
+
+const UNSAFE_MOBILE_REDIRECT_PROTOCOLS = ['javascript:', 'data:', 'file:', 'vbscript:', 'blob:'];
+
+/*
+ * The app's deep link (e.g. gridx://auth/google), or exp://… while developing in Expo Go.
+ * It comes only from config, never from the request, so sign-in results go only to this app link.
+ */
+function parseMobileRedirectUri(value: string, nodeEnv: string): string {
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    throw new Error(`MOBILE_OAUTH_REDIRECT_URI is not a valid URL: "${value}".`);
+  }
+
+  if (UNSAFE_MOBILE_REDIRECT_PROTOCOLS.includes(url.protocol)) {
+    throw new Error(`MOBILE_OAUTH_REDIRECT_URI must not use the ${url.protocol} scheme.`);
+  }
+
+  if (nodeEnv === 'production' && url.protocol === 'http:') {
+    throw new Error('MOBILE_OAUTH_REDIRECT_URI must not use http in production.');
+  }
+
+  return value;
 }
 
 function validateCookieConfig(env: RawEnvironment): void {

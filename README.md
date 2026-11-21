@@ -269,6 +269,27 @@ active session per user: a new login replaces the previous token hash. Every
 authenticated request must pass JWT verification and match this Redis value.
 Logout deletes the Redis entry and clears the access cookie.
 
+### Google sign-in on mobile
+
+After Google sign-in, the gateway sends the user back to the app at
+`MOBILE_OAUTH_REDIRECT_URI` with a one-time `handoff` code. The app trades it for
+tokens at `POST /api/v1/auth/google/mobile/exchange`. Leave it unset to turn mobile
+Google sign-in off.
+
+The value must exactly match the app's deep link, and that depends on how you run the app:
+
+| Running the app with | `MOBILE_OAUTH_REDIRECT_URI` | Why |
+|---|---|---|
+| Expo Go | `exp://<your-LAN-IP>:8081/--/auth/google` | Expo Go links include your machine's address. Copy the `exp://…` that `npx expo start` prints and add `/--/auth/google`. Update it when your IP changes. |
+| Expo Go on an emulator, started with `npx expo start --localhost` | `exp://127.0.0.1:8081/--/auth/google` | Same as above, but the address stays fixed. Android also needs `adb reverse tcp:8081 tcp:8081`. |
+| Dev build or installed app (`npx expo run:android`) | `gridx://auth/google` | The app registers its own `gridx://` scheme, so the value is the same for everyone. |
+
+`MOBILE_OAUTH_REDIRECT_URI` is not added to the Google Console. Only
+`GOOGLE_OAUTH_REDIRECT_URI` is. On the Android emulator, or an Android phone connected
+by USB, run `adb reverse tcp:8000 tcp:8000` so `localhost:8000` reaches the gateway.
+An iPhone, or an Android phone on Wi-Fi only, needs a tunnel such as ngrok, because
+Google does not accept LAN IPs as redirect URIs.
+
 ## CORS
 
 Credentials are enabled for browser requests, so `CORS_ORIGINS` must contain

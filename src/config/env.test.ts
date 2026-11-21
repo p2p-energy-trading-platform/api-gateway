@@ -40,6 +40,7 @@ const ALL_SCHEMA_KEYS = [
   'AUTH_JWKS_REQUEST_TIMEOUT_MS',
   'GOOGLE_CLIENT_ID',
   'GOOGLE_OAUTH_REDIRECT_URI',
+  'MOBILE_OAUTH_REDIRECT_URI',
   'FRONTEND_BASE_URL',
   'IOT_SERVICE_GRPC_URL',
   'BILLING_SERVICE_GRPC_URL',
@@ -387,4 +388,31 @@ describe('Google sign-in config', () => {
 
     expect(() => loadConfig()).toThrowError(/FRONTEND_BASE_URL must be one of CORS_ORIGINS/);
   });
+
+  it('loads the mobile redirect URI when set', () => {
+    setEnv({ ...REQUIRED_ENV, ...GOOGLE_ENV, MOBILE_OAUTH_REDIRECT_URI: 'gridx://auth/google' });
+
+    expect(loadConfig().googleOAuth?.mobileRedirectUri).toBe('gridx://auth/google');
+  });
+
+  it('leaves mobile sign-in off when the mobile redirect URI is not set', () => {
+    setEnv({ ...REQUIRED_ENV, ...GOOGLE_ENV });
+
+    expect(loadConfig().googleOAuth?.mobileRedirectUri).toBeUndefined();
+  });
+
+  it('requires the other Google settings for mobile sign-in', () => {
+    setEnv({ ...REQUIRED_ENV, MOBILE_OAUTH_REDIRECT_URI: 'gridx://auth/google' });
+
+    expect(() => loadConfig()).toThrowError(/MOBILE_OAUTH_REDIRECT_URI requires/);
+  });
+
+  it.each(['javascript:alert(1)', 'data:text/html,hi', 'not a url'])(
+    'rejects the mobile redirect URI "%s"',
+    (uri) => {
+      setEnv({ ...REQUIRED_ENV, ...GOOGLE_ENV, MOBILE_OAUTH_REDIRECT_URI: uri });
+
+      expect(() => loadConfig()).toThrowError(/MOBILE_OAUTH_REDIRECT_URI/);
+    },
+  );
 });
