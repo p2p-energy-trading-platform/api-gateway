@@ -26,6 +26,13 @@ export interface AppConfig {
     origins: string[];
   };
 
+  iotLive: {
+    // Each StreamHouseLive stream to the IoT service is reopened after this long.
+    streamTimeoutMs: number;
+    // An unwatched house's stream stays open this long in case a client comes back.
+    idleGraceMs: number;
+  };
+
   websocket: {
     // Connections are closed with 4001 after about this long, so clients reauthenticate.
     maxConnectionAgeMs: number;

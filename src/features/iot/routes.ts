@@ -8,6 +8,7 @@ import {
   getLatestReadingHandler,
   listHousesHandler,
 } from './handler.js';
+import { IotLiveFeed } from './live.js';
 import {
   emptyQuerySchema,
   energySeriesQuerySchema,
@@ -22,6 +23,8 @@ import {
 
 export async function registerIotRoutes(app: FastifyInstance): Promise<void> {
   const router = app.withTypeProvider<TypeBoxTypeProvider>();
+
+  registerIotLiveTopic(app);
 
   router.get(
     '/api/v1/iot/houses',
@@ -86,4 +89,27 @@ export async function registerIotRoutes(app: FastifyInstance): Promise<void> {
     },
     getEnergySummaryHandler,
   );
+}
+
+/*
+ * The iot.house.<houseId> WebSocket topic. Registered here, after the gRPC plugin, because its
+ * permission check calls the IoT service. Apps built without infrastructure have neither.
+ */
+function registerIotLiveTopic(app: FastifyInstance): void {
+  if (!app.hasDecorator('realtime') || !app.hasDecorator('grpcClients')) {
+    return;
+  }
+
+  const feed = new IotLiveFeed({
+    client: app.grpcClients.iot,
+    publish: (key, event, payload) => app.realtime.publish(key, event, payload),
+    log: app.log,
+    options: {
+      streamTimeoutMs: app.config.iotLive.streamTimeoutMs,
+      idleGraceMs: app.config.iotLive.idleGraceMs,
+    },
+  });
+
+  app.realtime.registerTopicProvider(feed);
+  app.addHook('onClose', async () => feed.close());
 }

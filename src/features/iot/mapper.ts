@@ -10,6 +10,8 @@ import {
   type GetLatestReadingResponse as GrpcGetLatestReadingResponse,
   type House as GrpcHouse,
   type ListHousesResponse as GrpcListHousesResponse,
+  type MeterReading as GrpcMeterReading,
+  type MeterStatusUpdate as GrpcMeterStatusUpdate,
 } from '@p2p-energy-trading-platform/typescript-sdk/gen/gridx/iot/v1/iot_pb';
 
 import { AppError } from '../../errors/app-error.js';
@@ -103,8 +105,11 @@ export function mapGetHouseResponse(result: GrpcGetHouseResponse): GetHouseRespo
 export function mapLatestReadingResponse(
   result: GrpcGetLatestReadingResponse,
 ): LatestReadingResponse {
-  const reading = required(result.reading);
+  return mapMeterReading(required(result.reading));
+}
 
+// Also the payload of the live "reading" event, so REST and WebSocket share one shape.
+export function mapMeterReading(reading: GrpcMeterReading): LatestReadingResponse {
   return {
     meterId: reading.meterId,
     measuredAt: isoTime(reading.measuredAt),
@@ -120,6 +125,19 @@ export function mapLatestReadingResponse(
       capacityKwh: asset.capacityKwh,
       ...(asset.pluggedIn !== undefined ? { pluggedIn: asset.pluggedIn } : {}),
     })),
+  };
+}
+
+export interface LiveStatus {
+  meterStatus: House['meterStatus'];
+  lastHeartbeatAt?: string;
+}
+
+// The payload of the live "status" event; the same fields as on a house.
+export function mapMeterStatusUpdate(update: GrpcMeterStatusUpdate): LiveStatus {
+  return {
+    meterStatus: required(METER_STATUS_NAMES[update.meterStatus]),
+    ...(update.lastHeartbeatAt ? { lastHeartbeatAt: isoTime(update.lastHeartbeatAt) } : {}),
   };
 }
 

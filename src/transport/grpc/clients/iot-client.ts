@@ -64,6 +64,17 @@ export class IotGrpcClient {
     }
   }
 
+  /*
+   * Opens a StreamHouseLive stream. Errors are left as ConnectError, because the caller decides
+   * by status code whether to reopen at once (DEADLINE_EXCEEDED) or back off.
+   */
+  streamHouseLive(
+    params: Parameters<IotClient['streamHouseLive']>[0],
+    options: { signal: AbortSignal; timeoutMs: number },
+  ) {
+    return this.client.streamHouseLive(params, options);
+  }
+
   async getEnergySummary(
     params: Parameters<IotClient['getEnergySummary']>[0],
     timeoutMs = this.defaultTimeoutMs,

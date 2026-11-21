@@ -379,18 +379,18 @@ describe('subscriptions', () => {
   });
 
   describe('topic providers', () => {
-    const HOUSE = 'iot.house.h1';
+    const HOUSE = 'example.h1';
 
-    // Lets user-a watch any house; "iot.house.down" cannot be checked.
+    // Lets user-a watch any house; "example.down" cannot be checked.
     function registerHouseProvider(delays: Record<string, Promise<void>> = {}) {
       const calls: string[] = [];
 
       app.realtime.registerTopicProvider({
-        matches: (topic) => topic.startsWith('iot.house.'),
+        matches: (topic) => topic.startsWith('example.'),
         authorize: async (topic, user) => {
           await delays[topic];
 
-          if (topic === 'iot.house.down') {
+          if (topic === 'example.down') {
             throw new Error('IoT service unavailable');
           }
 
@@ -441,7 +441,7 @@ describe('subscriptions', () => {
       const socket = await connectAs('user-a');
 
       expect(
-        await send(socket, { type: 'subscribe', id: '1', topic: 'iot.house.down' }),
+        await send(socket, { type: 'subscribe', id: '1', topic: 'example.down' }),
       ).toMatchObject({ type: 'error', id: '1', code: 'TOPIC_UNAVAILABLE' });
     });
 

@@ -56,6 +56,20 @@ export const envSchema = {
       default: 'http://localhost:5173',
     },
 
+    // Each StreamHouseLive stream to the IoT service is reopened after this long.
+    IOT_LIVE_STREAM_TIMEOUT_MS: {
+      type: 'integer',
+      minimum: 60000,
+      default: 1800000,
+    },
+
+    // An unwatched house's live stream stays open this long in case a client comes back.
+    IOT_LIVE_IDLE_GRACE_MS: {
+      type: 'integer',
+      minimum: 0,
+      default: 10000,
+    },
+
     // The access-token lifetime: a WebSocket must reauthenticate this often (±10%).
     WS_MAX_CONNECTION_AGE_MS: {
       type: 'integer',
