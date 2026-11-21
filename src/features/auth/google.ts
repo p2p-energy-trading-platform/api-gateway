@@ -347,7 +347,6 @@ async function consumeMobileHandoff(
   return parsed as MobileHandoff;
 }
 
-
 export async function googleMobileExchangeHandler(
   request: FastifyRequest<{ Body: GoogleMobileExchangeBody }>,
 ): Promise<GoogleMobileExchangeResponse> {
