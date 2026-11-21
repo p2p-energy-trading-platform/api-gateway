@@ -3,10 +3,12 @@ import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import { Type, type Static } from 'typebox';
 
+import { strictObject } from '../../common/validation.js';
 import type { AppConfig } from '../../config/types.js';
 import { AppError } from '../../errors/app-error.js';
 import { grpcDeadlinesMs } from '../../transport/grpc/deadlines.js';
 import type { RedisClient } from '../../transport/redis/client.js';
+import { isMobileClient } from './client-type.js';
 import { setSessionCookies } from './cookies.js';
 
 export const GOOGLE_STATE_COOKIE_NAME = 'gridx_oauth_state';
@@ -18,9 +20,29 @@ const STATE_TTL_SECONDS = 600;
 const DEFAULT_RETURN_TO = '/dashboard';
 const NEW_USER_RETURN_TO = '/sign-up?step=kyc';
 const FAILURE_PATH = '/sign-in?error=google';
+const HANDOFF_TTL_SECONDS = 60;
+const PKCE_CHALLENGE_PATTERN = '^[A-Za-z0-9_-]{43}$';
+const PKCE_VERIFIER_PATTERN = '^[A-Za-z0-9._~-]{43,128}$';
+const HANDOFF_PATTERN = '^[A-Za-z0-9_-]{43}$';
 
 export const googleStartQuerySchema = Type.Object({
   returnTo: Type.Optional(Type.String({ maxLength: 512 })),
+  client: Type.Optional(Type.Literal('mobile')),
+  codeChallenge: Type.Optional(Type.String({ pattern: PKCE_CHALLENGE_PATTERN })),
+});
+
+export const googleMobileExchangeBodySchema = strictObject({
+  handoff: Type.String({ pattern: HANDOFF_PATTERN }),
+  codeVerifier: Type.String({ pattern: PKCE_VERIFIER_PATTERN }),
+});
+
+export const googleMobileExchangeResponseSchema = strictObject({
+  userId: Type.String(),
+  email: Type.String(),
+  accessToken: Type.String(),
+  refreshToken: Type.String(),
+  expiresIn: Type.Integer(),
+  isNewUser: Type.Boolean(),
 });
 
 // Not strict: Google adds its own parameters (scope, authuser, prompt, ...) to the callback.
@@ -32,12 +54,17 @@ export const googleCallbackQuerySchema = Type.Object({
 
 export type GoogleStartQuery = Static<typeof googleStartQuerySchema>;
 export type GoogleCallbackQuery = Static<typeof googleCallbackQuerySchema>;
+export type GoogleMobileExchangeBody = Static<typeof googleMobileExchangeBodySchema>;
+export type GoogleMobileExchangeResponse = Static<typeof googleMobileExchangeResponseSchema>;
 
 interface PendingGoogleLogin {
   codeVerifier: string;
   nonce: string;
   returnTo: string;
+  appCodeChallenge?: string;
 }
+
+type MobileHandoff = GoogleMobileExchangeResponse & { appCodeChallenge: string };
 
 type GoogleOAuthConfig = NonNullable<AppConfig['googleOAuth']>;
 
@@ -47,6 +74,10 @@ function randomToken(): string {
 
 function pendingLoginKey(state: string): string {
   return `oauth:google:${createHash('sha256').update(state).digest('hex')}`;
+}
+
+export function mobileHandoffKey(handoff: string): string {
+  return `oauth:google:handoff:${createHash('sha256').update(handoff).digest('hex')}`;
 }
 
 function codeChallengeFor(codeVerifier: string): string {
@@ -109,12 +140,45 @@ async function consumePendingLogin(
   if (
     typeof parsed.codeVerifier !== 'string' ||
     typeof parsed.nonce !== 'string' ||
-    typeof parsed.returnTo !== 'string'
+    typeof parsed.returnTo !== 'string' ||
+    (parsed.appCodeChallenge !== undefined && typeof parsed.appCodeChallenge !== 'string')
   ) {
     return null;
   }
 
-  return { codeVerifier: parsed.codeVerifier, nonce: parsed.nonce, returnTo: parsed.returnTo };
+  return {
+    codeVerifier: parsed.codeVerifier,
+    nonce: parsed.nonce,
+    returnTo: parsed.returnTo,
+    ...(parsed.appCodeChallenge === undefined ? {} : { appCodeChallenge: parsed.appCodeChallenge }),
+  };
+}
+
+/** Appends query parameters without breaking a deep link that already has some (e.g. exp://). */
+function withQuery(base: string, params: Record<string, string>): string {
+  const url = new URL(base);
+
+  for (const [key, value] of Object.entries(params)) {
+    url.searchParams.set(key, value);
+  }
+
+  return url.toString();
+}
+
+function requireMobileRedirectUri(google: GoogleOAuthConfig): string {
+  if (google.mobileRedirectUri === undefined) {
+    throw new AppError('UPSTREAM_UNAVAILABLE', 'Mobile Google sign-in is not configured.');
+  }
+
+  return google.mobileRedirectUri;
+}
+
+function failureLocation(google: GoogleOAuthConfig, isMobile: boolean): string {
+  if (isMobile && google.mobileRedirectUri !== undefined) {
+    return withQuery(google.mobileRedirectUri, { error: 'google' });
+  }
+
+  return `${google.frontendBaseUrl}${FAILURE_PATH}`;
 }
 
 export async function googleStartHandler(
@@ -123,19 +187,30 @@ export async function googleStartHandler(
 ) {
   const { config, redis } = request.server;
   const google = requireGoogleConfig(config);
+  const { client, codeChallenge } = request.query;
+  const isMobile = client === 'mobile';
+
+  if (isMobile) {
+    requireMobileRedirectUri(google);
+
+    if (codeChallenge === undefined) {
+      throw new AppError('BAD_REQUEST', 'codeChallenge is required for mobile sign-in.');
+    }
+  }
 
   const state = randomToken();
   const pending: PendingGoogleLogin = {
     codeVerifier: randomToken(),
     nonce: randomToken(),
     returnTo: safeReturnTo(request.query.returnTo),
+    ...(isMobile && codeChallenge !== undefined ? { appCodeChallenge: codeChallenge } : {}),
   };
 
   try {
     await redis.set(pendingLoginKey(state), JSON.stringify(pending), { EX: STATE_TTL_SECONDS });
   } catch (err) {
     request.log.error({ err }, 'Failed to store Google sign-in state');
-    return reply.redirect(`${google.frontendBaseUrl}${FAILURE_PATH}`);
+    return reply.redirect(failureLocation(google, isMobile));
   }
 
   reply.setCookie(GOOGLE_STATE_COOKIE_NAME, state, {
@@ -166,9 +241,12 @@ export async function googleCallbackHandler(
   const { config, redis, grpcClients } = request.server;
   const google = requireGoogleConfig(config);
 
+  // Until the pending login is read we do not know the client, so failures go to the web app.
+  let isMobile = false;
+
   const fail = (reason: string) => {
-    request.log.warn({ reason }, 'Google sign-in failed');
-    return reply.redirect(`${google.frontendBaseUrl}${FAILURE_PATH}`);
+    request.log.warn({ reason, client: isMobile ? 'mobile' : 'web' }, 'Google sign-in failed');
+    return reply.redirect(failureLocation(google, isMobile));
   };
 
   const cookieState = request.cookies[GOOGLE_STATE_COOKIE_NAME];
@@ -179,6 +257,7 @@ export async function googleCallbackHandler(
   try {
     // Consume first: whatever happens next, this state can never be used again.
     const pending = state ? await consumePendingLogin(redis, state) : null;
+    isMobile = pending?.appCodeChallenge !== undefined && google.mobileRedirectUri !== undefined;
 
     if (error !== undefined) {
       return fail(error === 'access_denied' ? 'cancelled_by_user' : 'google_error');
@@ -206,6 +285,25 @@ export async function googleCallbackHandler(
       grpcDeadlinesMs.authLoginWithGoogle,
     );
 
+    if (isMobile && pending.appCodeChallenge !== undefined) {
+      const handoff = randomToken();
+      const stored: MobileHandoff = {
+        userId: result.userId,
+        email: result.email,
+        accessToken: result.accessToken,
+        refreshToken: result.refreshToken,
+        expiresIn: Number(result.expiresIn),
+        isNewUser: result.isNewUser,
+        appCodeChallenge: pending.appCodeChallenge,
+      };
+
+      await redis.set(mobileHandoffKey(handoff), JSON.stringify(stored), {
+        EX: HANDOFF_TTL_SECONDS,
+      });
+
+      return reply.redirect(withQuery(requireMobileRedirectUri(google), { handoff }));
+    }
+
     setSessionCookies(reply, config, {
       accessToken: result.accessToken,
       refreshToken: result.refreshToken,
@@ -220,4 +318,60 @@ export async function googleCallbackHandler(
     request.log.warn({ err }, 'Google sign-in could not be completed');
     return fail('sign_in_failed');
   }
+}
+
+async function consumeMobileHandoff(
+  redis: RedisClient,
+  handoff: string,
+): Promise<MobileHandoff | null> {
+  const raw = await redis.getDel(mobileHandoffKey(handoff));
+
+  if (raw === null) {
+    return null;
+  }
+
+  const parsed = JSON.parse(raw) as Partial<MobileHandoff>;
+
+  if (
+    typeof parsed.userId !== 'string' ||
+    typeof parsed.email !== 'string' ||
+    typeof parsed.accessToken !== 'string' ||
+    typeof parsed.refreshToken !== 'string' ||
+    typeof parsed.expiresIn !== 'number' ||
+    typeof parsed.isNewUser !== 'boolean' ||
+    typeof parsed.appCodeChallenge !== 'string'
+  ) {
+    return null;
+  }
+
+  return parsed as MobileHandoff;
+}
+
+
+export async function googleMobileExchangeHandler(
+  request: FastifyRequest<{ Body: GoogleMobileExchangeBody }>,
+): Promise<GoogleMobileExchangeResponse> {
+  const { config, redis } = request.server;
+  requireMobileRedirectUri(requireGoogleConfig(config));
+
+  if (!isMobileClient(request)) {
+    throw new AppError('BAD_REQUEST', 'This endpoint is only for the mobile app.');
+  }
+
+  const { handoff, codeVerifier } = request.body;
+
+  const stored = await consumeMobileHandoff(redis, handoff);
+
+  if (stored === null || !sameValue(codeChallengeFor(codeVerifier), stored.appCodeChallenge)) {
+    throw new AppError('UNAUTHENTICATED', 'Google sign-in code is invalid or has expired.');
+  }
+
+  return {
+    userId: stored.userId,
+    email: stored.email,
+    accessToken: stored.accessToken,
+    refreshToken: stored.refreshToken,
+    expiresIn: stored.expiresIn,
+    isNewUser: stored.isNewUser,
+  };
 }
