@@ -11,7 +11,6 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { AppError } from '../../../src/errors/app-error.js';
 import { IotLiveFeed, type LiveIotClient } from '../../../src/features/iot/live.js';
-import { createMetrics } from '../../../src/observability/metrics.js';
 
 const HOUSE = 'grid01-house0042';
 const TOPIC = `iot.house.${HOUSE}`;
@@ -137,14 +136,12 @@ const quietLog = { warn: () => {}, info: () => {}, error: () => {}, debug: () =>
 function setup(options: Partial<ConstructorParameters<typeof IotLiveFeed>[0]['options']> = {}) {
   const client = new FakeClient();
   const published: { key: string; event: string; payload: unknown }[] = [];
-  const metrics = createMetrics();
   const feed = new IotLiveFeed({
     client,
     publish: (key, event, payload) => {
       published.push({ key, event, payload });
       return 1;
     },
-    metrics,
     log: quietLog,
     options: {
       streamTimeoutMs: 1_800_000,
@@ -155,7 +152,7 @@ function setup(options: Partial<ConstructorParameters<typeof IotLiveFeed>[0]['op
     },
   });
   feeds.push(feed);
-  return { client, published, metrics, feed };
+  return { client, published, feed };
 }
 
 const feeds: IotLiveFeed[] = [];
@@ -165,10 +162,6 @@ afterEach(() => {
     feed.close();
   }
 });
-
-async function metricsText(metrics: ReturnType<typeof createMetrics>) {
-  return metrics.registry.metrics();
-}
 
 describe('IotLiveFeed topics', () => {
   it('handles iot.house topics only', () => {
@@ -259,17 +252,15 @@ describe('IotLiveFeed upstream', () => {
   });
 
   it('closes the stream after the idle grace period', async () => {
-    const { feed, client, metrics } = setup();
+    const { feed, client } = setup();
     feed.onActive(TOPIC);
     await waitFor(() => client.streams.length === 1);
-    expect(await metricsText(metrics)).toMatch(/^gateway_iot_live_upstreams 1$/m);
 
     feed.onIdle(TOPIC);
     expect(client.latest().signal.aborted).toBe(false);
 
     await waitFor(() => client.latest().signal.aborted);
     await new Promise((resolve) => setTimeout(resolve, 10));
-    expect(await metricsText(metrics)).toMatch(/^gateway_iot_live_upstreams 0$/m);
     expect(client.streams).toHaveLength(1);
   });
 
@@ -287,26 +278,42 @@ describe('IotLiveFeed upstream', () => {
   });
 
   it('reopens at once when the stream reaches its maximum age', async () => {
-    const { feed, client, published, metrics } = setup({
+    const { feed, client, published } = setup({
       minBackoffMs: 10_000,
       maxBackoffMs: 10_000,
     });
     feed.onActive(TOPIC);
     await waitFor(() => client.streams.length === 1);
 
+    // A live stream always starts with the status snapshot.
+    client.latest().push(statusMessage(true));
     client.latest().push(new ConnectError('max age', Code.DeadlineExceeded));
     await waitFor(() => client.streams.length === 2);
+    client.latest().push(statusMessage(true));
     client.latest().push('end');
     await waitFor(() => client.streams.length === 3);
 
     expect(published.filter((p) => p.event === 'stream-state')).toEqual([]);
-    const text = await metricsText(metrics);
-    expect(text).toMatch(/^gateway_iot_live_upstream_restarts_total\{reason="deadline"\} 1$/m);
-    expect(text).toMatch(/^gateway_iot_live_upstream_restarts_total\{reason="ended"\} 1$/m);
+  });
+
+  it.each([
+    ['a deadline', () => new ConnectError('database slow', Code.DeadlineExceeded)],
+    ['a normal end', () => 'end' as const],
+  ])('backs off when a stream ends with %s before sending anything', async (_name, ending) => {
+    const { feed, client } = setup({ minBackoffMs: 200, maxBackoffMs: 200 });
+    feed.onActive(TOPIC);
+    await waitFor(() => client.streams.length === 1);
+
+    client.latest().push(ending());
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    // Reopening at once here would loop as fast as the IoT service can fail.
+    expect(client.streams).toHaveLength(1);
+    await waitFor(() => client.streams.length === 2, 1000);
   });
 
   it('reports an interruption, retries with backoff, and reports live again', async () => {
-    const { feed, client, published, metrics } = setup();
+    const { feed, client, published } = setup();
     feed.onActive(TOPIC);
     await waitFor(() => client.streams.length === 1);
     client.latest().push(readingMessage(1));
@@ -327,9 +334,6 @@ describe('IotLiveFeed upstream', () => {
     ]);
     expect(published[1]?.payload).toEqual({ state: 'interrupted' });
     expect(published[2]?.payload).toEqual({ state: 'live' });
-    expect(await metricsText(metrics)).toMatch(
-      /^gateway_iot_live_upstream_restarts_total\{reason="error"\} 2$/m,
-    );
   });
 
   it('starts the backoff again after a stream worked', async () => {
@@ -380,18 +384,6 @@ describe('IotLiveFeed upstream', () => {
 
     expect(published[0]).toMatchObject({ event: 'reading', payload: { seq: 2 } });
     expect(client.streams).toHaveLength(1);
-  });
-
-  it('counts the events it forwards', async () => {
-    const { feed, client, published, metrics } = setup();
-    feed.onActive(TOPIC);
-    await waitFor(() => client.streams.length === 1);
-    client.latest().push(readingMessage(1));
-    await waitFor(() => published.length === 1);
-
-    expect(await metricsText(metrics)).toMatch(
-      /^gateway_ws_events_total\{topic_type="iot.house",event="reading"\} 1$/m,
-    );
   });
 
   it('closes every stream on close', async () => {

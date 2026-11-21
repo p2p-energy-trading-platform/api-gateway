@@ -103,7 +103,6 @@ function registerIotLiveTopic(app: FastifyInstance): void {
   const feed = new IotLiveFeed({
     client: app.grpcClients.iot,
     publish: (key, event, payload) => app.realtime.publish(key, event, payload),
-    metrics: app.metrics,
     log: app.log,
     options: {
       streamTimeoutMs: app.config.iotLive.streamTimeoutMs,
