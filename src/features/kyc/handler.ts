@@ -10,7 +10,11 @@ import type {
   KycUploadUrlResponse,
 } from './schemas.js';
 
-import { mapKycSubmitResponse, mapKycUploadUrlResponse } from './mapper.js';
+import {
+  mapKycSubmissionViewResponse,
+  mapKycSubmitResponse,
+  mapKycUploadUrlResponse,
+} from './mapper.js';
 
 export async function createKycNicOcrHandler(
   request: FastifyRequest<{ Body: KycNicOcrBody }>,
@@ -86,4 +90,13 @@ export async function submitKycHandler(
   reply.code(201);
 
   return mapKycSubmitResponse(result);
+}
+
+export async function getKycSubmissionHandler(request: FastifyRequest) {
+  const result = await request.server.grpcClients.auth.getKycSubmission(
+    {},
+    grpcDeadlinesMs.authGetKycSubmission,
+  );
+
+  return mapKycSubmissionViewResponse(result);
 }
