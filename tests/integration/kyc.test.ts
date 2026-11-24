@@ -25,6 +25,7 @@ import { testConfig } from '../helpers/test-config.js';
 const OCR_URL = '/api/v1/kyc/extract-nic-ocr';
 const UPLOAD_URL = '/api/v1/kyc/upload-url';
 const SUBMIT_URL = '/api/v1/kyc';
+const GET_SUBMISSION_URL = '/api/v1/kyc';
 const USER_ID = 'kyc-user-1';
 const OBJECT_KEY = `kyc/${USER_ID}/3f1c2b9e-8d4a-4c5e-9b1a-2e7f6d5c4b3a.jpg`;
 
@@ -43,7 +44,7 @@ interface ReceivedCall {
 
 type KycImplementation = Pick<
   ServiceImpl<typeof AuthService>,
-  'createKycUploadUrl' | 'extractKycNicOcr' | 'submitKyc'
+  'createKycUploadUrl' | 'extractKycNicOcr' | 'submitKyc' | 'getKycSubmission'
 >;
 
 function submission(state: KycState = KycState.PENDING, rejectionReason = '') {
@@ -126,6 +127,18 @@ describe('KYC routes', () => {
 
         if (implementation.submitKyc) {
           return implementation.submitKyc(req, context);
+        }
+
+        return { submission: submission() };
+      },
+      getKycSubmission: async (_req, context) => {
+        received.push({
+          userId: context.requestHeader.get('x-gridx-user-id'),
+          request: {},
+        });
+
+        if (implementation.getKycSubmission) {
+          return implementation.getKycSubmission(_req, context);
         }
 
         return { submission: submission() };
@@ -364,6 +377,57 @@ describe('KYC routes', () => {
       expect(response.json()).toMatchObject({
         state: 'REJECTED',
         rejectionReason: 'Document unreadable',
+      });
+
+      describe('GET /api/v1/kyc', () => {
+        it('returns the authenticated user read-only KYC submission details', async () => {
+          const instance = await setup();
+
+          const response = await instance.inject({
+            method: 'GET',
+            url: GET_SUBMISSION_URL,
+            headers: await authHeaders(),
+          });
+
+          expect(response.statusCode).toBe(200);
+          expect(response.json()).toEqual({
+            id: 'kyc-123',
+            fullName: 'Jane Doe',
+            dateOfBirth: '1998-04-12',
+            nicNumber: '199812345678',
+            state: 'PENDING',
+            createdAt: '2026-10-13T10:00:00.000Z',
+            updatedAt: '2026-10-13T10:00:00.000Z',
+          });
+          expect(received).toEqual([{ userId: USER_ID, request: {} }]);
+        });
+
+        it('returns null when the user has not submitted KYC', async () => {
+          const instance = await setup({
+            getKycSubmission: () => ({}),
+          });
+
+          const response = await instance.inject({
+            method: 'GET',
+            url: GET_SUBMISSION_URL,
+            headers: await authHeaders(),
+          });
+
+          expect(response.statusCode).toBe(200);
+          expect(response.json()).toBeNull();
+        });
+
+        it('requires authentication', async () => {
+          const instance = await setup();
+
+          const response = await instance.inject({
+            method: 'GET',
+            url: GET_SUBMISSION_URL,
+          });
+
+          expect(response.statusCode).toBe(401);
+          expect(received).toHaveLength(0);
+        });
       });
     });
 
