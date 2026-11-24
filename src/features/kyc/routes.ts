@@ -1,12 +1,19 @@
+import { Type } from 'typebox';
 import type { TypeBoxTypeProvider } from '@fastify/type-provider-typebox';
 import type { FastifyInstance } from 'fastify';
 
-import { createKycNicOcrHandler, createKycUploadUrlHandler, submitKycHandler } from './handler.js';
+import {
+  createKycNicOcrHandler,
+  createKycUploadUrlHandler,
+  getKycSubmissionHandler,
+  submitKycHandler,
+} from './handler.js';
 import {
   kycNicOcrBodySchema,
   kycNicOcrResponseSchema,
   kycSubmitBodySchema,
   kycSubmitResponseSchema,
+  kycSubmissionViewResponseSchema,
   kycUploadUrlBodySchema,
   kycUploadUrlResponseSchema,
 } from './schemas.js';
@@ -63,5 +70,21 @@ export async function registerKycRoutes(app: FastifyInstance): Promise<void> {
       },
     },
     submitKycHandler,
+  );
+
+  router.get(
+    '/api/v1/kyc',
+    {
+      config: {
+        rateLimit: 'authenticated-read',
+        auth: 'required',
+      },
+      schema: {
+        response: {
+          200: Type.Union([Type.Null(), kycSubmissionViewResponseSchema]),
+        },
+      },
+    },
+    getKycSubmissionHandler,
   );
 }
