@@ -48,5 +48,17 @@ export const kycSubmitResponseSchema = strictObject({
   updatedAt: Type.String({ format: 'date-time' }),
 });
 
+export const kycSubmissionViewResponseSchema = strictObject({
+  id: Type.String(),
+  fullName: Type.String(),
+  dateOfBirth: Type.String({ format: 'date' }),
+  nicNumber: Type.String(),
+  state: Type.Union([Type.Literal('PENDING'), Type.Literal('VERIFIED'), Type.Literal('REJECTED')]),
+  rejectionReason: Type.Optional(Type.String()),
+  createdAt: Type.String({ format: 'date-time' }),
+  updatedAt: Type.String({ format: 'date-time' }),
+});
+
 export type KycSubmitBody = Static<typeof kycSubmitBodySchema>;
 export type KycSubmitResponse = Static<typeof kycSubmitResponseSchema>;
+export type KycSubmissionViewResponse = Static<typeof kycSubmissionViewResponseSchema>;
