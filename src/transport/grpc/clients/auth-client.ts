@@ -224,6 +224,17 @@ export class AuthGrpcClient {
     }
   }
 
+  async getKycSubmission(
+    params: Parameters<Client<typeof AuthService>['getKycSubmission']>[0],
+    timeoutMs = this.defaultTimeoutMs,
+  ) {
+    try {
+      return await this.client.getKycSubmission(params, { timeoutMs });
+    } catch (err) {
+      throw toAppError(err);
+    }
+  }
+
   async loginWithGoogle(
     params: Parameters<Client<typeof AuthService>['loginWithGoogle']>[0],
     timeoutMs = this.defaultTimeoutMs,
